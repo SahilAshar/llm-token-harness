@@ -13,6 +13,12 @@ class Provider(StrEnum):
 
 
 @dataclass(frozen=True)
+class ToolCall:
+    name: str
+    arguments: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class LLMResponse:
     text: str
     input_tokens: int
@@ -22,6 +28,7 @@ class LLMResponse:
     reasoning_tokens: int = 0
     model: str = ""
     response_id: str = ""
+    tool_calls: list[ToolCall] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -35,6 +42,7 @@ class LLMAdapter(ABC):
         messages: list[dict[str, Any]],
         max_output_tokens: int,
         temperature: float = 1.0,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> LLMResponse: ...
 

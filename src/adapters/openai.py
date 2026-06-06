@@ -6,7 +6,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from src.adapters.base import LLMAdapter, LLMResponse, Provider
+from src.adapters.base import LLMAdapter, LLMResponse, Provider, ToolCall
 
 
 class OpenAIAdapter(LLMAdapter):
@@ -21,6 +21,7 @@ class OpenAIAdapter(LLMAdapter):
         messages: list[dict[str, Any]],
         max_output_tokens: int,
         temperature: float = 1.0,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
         reasoning_effort = kwargs.get("reasoning_effort")
@@ -33,10 +34,25 @@ class OpenAIAdapter(LLMAdapter):
         )
         if reasoning_effort:
             call_kwargs["reasoning_effort"] = reasoning_effort
+        if tools:
+            call_kwargs["tools"] = tools
+            call_kwargs["tool_choice"] = "auto"
 
         resp = self.client.chat.completions.create(**call_kwargs)
 
-        text = resp.choices[0].message.content or ""
+        msg = resp.choices[0].message
+        text = msg.content or ""
+
+        tool_calls: list[ToolCall] = []
+        if msg.tool_calls:
+            for tc in msg.tool_calls:
+                tool_calls.append(
+                    ToolCall(
+                        name=tc.function.name,
+                        arguments=json.loads(tc.function.arguments),
+                    )
+                )
+
         u = resp.usage
         prompt_details = getattr(u, "prompt_tokens_details", None)
         completion_details = getattr(u, "completion_tokens_details", None)
@@ -49,5 +65,6 @@ class OpenAIAdapter(LLMAdapter):
             reasoning_tokens=getattr(completion_details, "reasoning_tokens", 0) or 0,
             model=resp.model or model,
             response_id=resp.id or "",
+            tool_calls=tool_calls,
             raw=json.loads(resp.model_dump_json()),
         )

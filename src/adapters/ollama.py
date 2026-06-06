@@ -4,7 +4,7 @@ import json
 from typing import Any
 from urllib.request import Request, urlopen
 
-from src.adapters.base import LLMAdapter, LLMResponse, Provider
+from src.adapters.base import LLMAdapter, LLMResponse, Provider, ToolCall
 
 
 class OllamaAdapter(LLMAdapter):
@@ -19,6 +19,7 @@ class OllamaAdapter(LLMAdapter):
         messages: list[dict[str, Any]],
         max_output_tokens: int,
         temperature: float = 1.0,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
         payload: dict[str, Any] = {
@@ -34,6 +35,8 @@ class OllamaAdapter(LLMAdapter):
         }
         if "think" in kwargs:
             payload["think"] = kwargs["think"]
+        if tools:
+            payload["tools"] = tools
 
         req = Request(
             f"{self.base_url}/api/chat",
@@ -50,6 +53,16 @@ class OllamaAdapter(LLMAdapter):
         input_tokens = data.get("prompt_eval_count", 0)
         output_tokens = data.get("eval_count", 0)
 
+        tool_calls: list[ToolCall] = []
+        for tc in msg.get("tool_calls", []):
+            fn = tc.get("function", {})
+            tool_calls.append(
+                ToolCall(
+                    name=fn.get("name", ""),
+                    arguments=fn.get("arguments", {}),
+                )
+            )
+
         return LLMResponse(
             text=text,
             input_tokens=input_tokens,
@@ -57,5 +70,6 @@ class OllamaAdapter(LLMAdapter):
             total_tokens=input_tokens + output_tokens,
             reasoning_tokens=len(thinking.split()) if thinking else 0,
             model=model,
+            tool_calls=tool_calls,
             raw=data,
         )
