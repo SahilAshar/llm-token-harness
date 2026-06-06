@@ -20,7 +20,7 @@ class OllamaAdapter(LLMAdapter):
         temperature: float = 1.0,
         **kwargs,
     ) -> LLMResponse:
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
             "stream": False,
@@ -29,6 +29,8 @@ class OllamaAdapter(LLMAdapter):
                 "num_predict": max_output_tokens,
             },
         }
+        if "think" in kwargs:
+            payload["think"] = kwargs["think"]
 
         req = Request(
             f"{self.base_url}/api/chat",
@@ -36,10 +38,12 @@ class OllamaAdapter(LLMAdapter):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urlopen(req, timeout=120) as resp:
+        with urlopen(req, timeout=300) as resp:
             data = json.loads(resp.read())
 
-        text = data.get("message", {}).get("content", "")
+        msg = data.get("message", {})
+        text = msg.get("content", "")
+        thinking = msg.get("thinking", "")
         input_tokens = data.get("prompt_eval_count", 0)
         output_tokens = data.get("eval_count", 0)
 
@@ -48,6 +52,7 @@ class OllamaAdapter(LLMAdapter):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=input_tokens + output_tokens,
+            reasoning_tokens=len(thinking.split()) if thinking else 0,
             model=model,
             raw=data,
         )
