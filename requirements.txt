@@ -57,6 +57,7 @@ pillow==11.3.0
     # via matplotlib
 pydantic==2.11.7
     # via
+    #   -r requirements.in
     #   anthropic
     #   openai
 pydantic-core==2.33.2

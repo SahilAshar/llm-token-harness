@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel
 
 from src.adapters.base import Provider
 
 
-@dataclass(frozen=True)
-class ModelPricing:
+class ModelPricing(BaseModel, frozen=True):
     input_per_mtok: float
     output_per_mtok: float
 

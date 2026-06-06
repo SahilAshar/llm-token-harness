@@ -6,15 +6,15 @@ args match, 0 otherwise.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
+
+from pydantic import BaseModel
 
 from src.adapters.base import ToolCall
 from src.tasks import ArgMatchType, ExpectedArg, Task
 
 
-@dataclass(frozen=True)
-class TaskResult:
+class TaskResult(BaseModel, frozen=True):
     task_id: str
     score: int
     expected_tool: str
