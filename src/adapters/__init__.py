@@ -1,6 +1,7 @@
 from src.adapters.anthropic import AnthropicAdapter
 from src.adapters.base import LLMAdapter, Provider
 from src.adapters.base import LLMResponse as LLMResponse
+from src.adapters.base import ToolCall as ToolCall
 from src.adapters.ollama import OllamaAdapter
 from src.adapters.openai import OpenAIAdapter
 

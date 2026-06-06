@@ -6,7 +6,7 @@ from typing import Any
 
 import anthropic
 
-from src.adapters.base import LLMAdapter, LLMResponse, Provider
+from src.adapters.base import LLMAdapter, LLMResponse, Provider, ToolCall
 
 
 class AnthropicAdapter(LLMAdapter):
@@ -22,6 +22,7 @@ class AnthropicAdapter(LLMAdapter):
         messages: list[dict[str, Any]],
         max_output_tokens: int,
         temperature: float = 1.0,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
         system_text = ""
@@ -41,13 +42,26 @@ class AnthropicAdapter(LLMAdapter):
         )
         if system_text:
             call_kwargs["system"] = system_text
+        if tools:
+            call_kwargs["tools"] = [
+                {
+                    "name": t["function"]["name"],
+                    "description": t["function"].get("description", ""),
+                    "input_schema": t["function"]["parameters"],
+                }
+                for t in tools
+            ]
+            call_kwargs["tool_choice"] = {"type": "auto"}
 
         resp = self.client.messages.create(**call_kwargs)
 
         text = ""
+        tool_calls: list[ToolCall] = []
         for block in resp.content:
             if block.type == "text":
                 text += block.text
+            elif block.type == "tool_use":
+                tool_calls.append(ToolCall(name=block.name, arguments=block.input))
 
         return LLMResponse(
             text=text,
@@ -57,5 +71,6 @@ class AnthropicAdapter(LLMAdapter):
             cached_tokens=getattr(resp.usage, "cache_read_input_tokens", 0) or 0,
             model=resp.model or model,
             response_id=resp.id or "",
+            tool_calls=tool_calls,
             raw=json.loads(resp.model_dump_json()),
         )
