@@ -19,4 +19,4 @@ jobs:
       - name: Mypy
         run: uv run mypy src/adapters/ src/pricing.py src/tools.py src/tasks.py src/scorer.py
       - name: Tests
-        run: uv run pytest tests/ --ignore=tests/test_adapters.py -v
+        run: uv run pytest tests/ -m "not live" -v
