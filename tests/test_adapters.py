@@ -2,8 +2,9 @@
 
 Run with: python -m pytest tests/test_adapters.py -v
 
-These tests hit live APIs / local Ollama. Skip selectively:
-    pytest tests/ -v -k "not openai and not anthropic"
+These tests hit live APIs / local Ollama and are marked `live`.
+CI runs: pytest -m "not live"
+Local runs: pytest (runs everything)
 """
 
 import os
@@ -35,6 +36,7 @@ def ollama_available():
         pytest.skip("Ollama not running")
 
 
+@pytest.mark.live
 @pytest.mark.skipif(not HAS_OPENAI, reason="No OPENAI_API_KEY")
 def test_openai_adapter():
     adapter = get_adapter("openai")
@@ -46,6 +48,7 @@ def test_openai_adapter():
     assert resp.output_tokens > 0
 
 
+@pytest.mark.live
 @pytest.mark.skipif(not HAS_ANTHROPIC, reason="No ANTHROPIC_API_KEY")
 def test_anthropic_adapter():
     adapter = get_adapter("anthropic")
@@ -59,6 +62,7 @@ def test_anthropic_adapter():
     assert resp.output_tokens > 0
 
 
+@pytest.mark.live
 def test_ollama_adapter(ollama_available):
     adapter = get_adapter("ollama")
     resp = adapter.complete(
