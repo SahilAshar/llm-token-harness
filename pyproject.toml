@@ -1,0 +1,25 @@
+[project]
+name = "llm-token-harness"
+version = "0.2.0"
+requires-python = ">=3.12"
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["openai.*", "anthropic.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+extend-exclude = [
+    "src/adapter.py",
+    "src/runner.py",
+    "src/suites.py",
+    "src/trial.py",
+    "src/result_logger.py",
+    "utils/",
+    "main.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
