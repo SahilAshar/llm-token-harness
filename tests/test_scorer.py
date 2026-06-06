@@ -41,7 +41,9 @@ class TestScoreTask:
     def test_exact_match_string(self) -> None:
         task = _make_task(
             tool="get_document",
-            args=[ExpectedArg("doc_id", ArgMatchType.EXACT, "doc_3")],
+            args=[
+                ExpectedArg(name="doc_id", match_type=ArgMatchType.EXACT, value="doc_3")
+            ],
         )
         result = score_task(
             task,
@@ -53,7 +55,9 @@ class TestScoreTask:
     def test_exact_match_case_insensitive(self) -> None:
         task = _make_task(
             tool="get_document",
-            args=[ExpectedArg("doc_id", ArgMatchType.EXACT, "doc_3")],
+            args=[
+                ExpectedArg(name="doc_id", match_type=ArgMatchType.EXACT, value="doc_3")
+            ],
         )
         result = score_task(
             task,
@@ -64,7 +68,7 @@ class TestScoreTask:
     def test_exact_match_int(self) -> None:
         task = _make_task(
             tool="search",
-            args=[ExpectedArg("top_k", ArgMatchType.EXACT, 10)],
+            args=[ExpectedArg(name="top_k", match_type=ArgMatchType.EXACT, value=10)],
         )
         result = score_task(
             task,
@@ -75,7 +79,9 @@ class TestScoreTask:
     def test_exact_match_wrong_value(self) -> None:
         task = _make_task(
             tool="get_document",
-            args=[ExpectedArg("doc_id", ArgMatchType.EXACT, "doc_3")],
+            args=[
+                ExpectedArg(name="doc_id", match_type=ArgMatchType.EXACT, value="doc_3")
+            ],
         )
         result = score_task(
             task,
@@ -89,9 +95,9 @@ class TestScoreTask:
             tool="search",
             args=[
                 ExpectedArg(
-                    "query",
-                    ArgMatchType.KEYWORDS,
-                    ["indemnification"],
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["indemnification"],
                 ),
             ],
         )
@@ -110,7 +116,9 @@ class TestScoreTask:
         task = _make_task(
             tool="search",
             args=[
-                ExpectedArg("query", ArgMatchType.KEYWORDS, ["NDA"]),
+                ExpectedArg(
+                    name="query", match_type=ArgMatchType.KEYWORDS, value=["NDA"]
+                ),
             ],
         )
         result = score_task(
@@ -124,9 +132,9 @@ class TestScoreTask:
             tool="search",
             args=[
                 ExpectedArg(
-                    "query",
-                    ArgMatchType.KEYWORDS,
-                    ["indemnification", "2024"],
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["indemnification", "2024"],
                 ),
             ],
         )
@@ -146,9 +154,9 @@ class TestScoreTask:
             tool="search",
             args=[
                 ExpectedArg(
-                    "query",
-                    ArgMatchType.KEYWORDS,
-                    ["indemnification"],
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["indemnification"],
                 ),
             ],
         )
@@ -167,8 +175,10 @@ class TestScoreTask:
         task = _make_task(
             tool="search",
             args=[
-                ExpectedArg("query", ArgMatchType.KEYWORDS, ["NDA"]),
-                ExpectedArg("top_k", ArgMatchType.EXACT, 10),
+                ExpectedArg(
+                    name="query", match_type=ArgMatchType.KEYWORDS, value=["NDA"]
+                ),
+                ExpectedArg(name="top_k", match_type=ArgMatchType.EXACT, value=10),
             ],
         )
         result = score_task(
@@ -183,8 +193,10 @@ class TestScoreTask:
         task = _make_task(
             tool="search",
             args=[
-                ExpectedArg("query", ArgMatchType.KEYWORDS, ["NDA"]),
-                ExpectedArg("top_k", ArgMatchType.EXACT, 10),
+                ExpectedArg(
+                    name="query", match_type=ArgMatchType.KEYWORDS, value=["NDA"]
+                ),
+                ExpectedArg(name="top_k", match_type=ArgMatchType.EXACT, value=10),
             ],
         )
         result = score_task(

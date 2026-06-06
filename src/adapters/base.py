@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
+
+from pydantic import BaseModel
 
 
 class Provider(StrEnum):
@@ -12,14 +13,12 @@ class Provider(StrEnum):
     OLLAMA = "ollama"
 
 
-@dataclass(frozen=True)
-class ToolCall:
+class ToolCall(BaseModel, frozen=True):
     name: str
-    arguments: dict[str, Any] = field(default_factory=dict)
+    arguments: dict[str, Any] = {}
 
 
-@dataclass(frozen=True)
-class LLMResponse:
+class LLMResponse(BaseModel, frozen=True):
     text: str
     input_tokens: int
     output_tokens: int
@@ -28,8 +27,8 @@ class LLMResponse:
     reasoning_tokens: int = 0
     model: str = ""
     response_id: str = ""
-    tool_calls: list[ToolCall] = field(default_factory=list)
-    raw: dict[str, Any] = field(default_factory=dict)
+    tool_calls: list[ToolCall] = []
+    raw: dict[str, Any] = {}
 
 
 class LLMAdapter(ABC):

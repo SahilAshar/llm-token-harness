@@ -73,6 +73,7 @@ pluggy==1.6.0
     # via pytest
 pydantic==2.13.4
     # via
+    #   -r requirements.in
     #   anthropic
     #   openai
 pydantic-core==2.46.4
