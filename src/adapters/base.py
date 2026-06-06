@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -21,7 +22,7 @@ class LLMResponse:
     reasoning_tokens: int = 0
     model: str = ""
     response_id: str = ""
-    raw: dict = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
 class LLMAdapter(ABC):
@@ -34,11 +35,10 @@ class LLMAdapter(ABC):
         messages: list[dict[str, Any]],
         max_output_tokens: int,
         temperature: float = 1.0,
-        **kwargs,
-    ) -> LLMResponse:
-        ...
+        **kwargs: Any,
+    ) -> LLMResponse: ...
 
-    def normalize_messages(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Convert from the canonical format (role/content strings) to provider-specific format.
-        Default implementation returns messages as-is. Override for providers with different formats."""
+    def normalize_messages(
+        self, messages: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         return messages

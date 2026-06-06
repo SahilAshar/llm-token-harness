@@ -1,7 +1,8 @@
-from src.adapters.base import LLMAdapter, LLMResponse, Provider
-from src.adapters.openai import OpenAIAdapter
 from src.adapters.anthropic import AnthropicAdapter
+from src.adapters.base import LLMAdapter, Provider
+from src.adapters.base import LLMResponse as LLMResponse
 from src.adapters.ollama import OllamaAdapter
+from src.adapters.openai import OpenAIAdapter
 
 ADAPTERS: dict[Provider, type[LLMAdapter]] = {
     Provider.OPENAI: OpenAIAdapter,

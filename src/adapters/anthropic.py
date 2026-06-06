@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 import os
 from typing import Any
@@ -12,7 +13,8 @@ class AnthropicAdapter(LLMAdapter):
     provider = Provider.ANTHROPIC
 
     def __init__(self, api_key: str | None = None):
-        self.client = anthropic.Anthropic(api_key=api_key or os.environ["ANTHROPIC_API_KEY"])
+        key = api_key or os.environ["ANTHROPIC_API_KEY"]
+        self.client = anthropic.Anthropic(api_key=key)
 
     def complete(
         self,
@@ -20,13 +22,14 @@ class AnthropicAdapter(LLMAdapter):
         messages: list[dict[str, Any]],
         max_output_tokens: int,
         temperature: float = 1.0,
-        **kwargs,
+        **kwargs: Any,
     ) -> LLMResponse:
         system_text = ""
         chat_messages = []
         for m in messages:
             if m["role"] == "system":
-                system_text = m["content"] if isinstance(m["content"], str) else str(m["content"])
+                content = m["content"]
+                system_text = content if isinstance(content, str) else str(content)
             else:
                 chat_messages.append({"role": m["role"], "content": m["content"]})
 

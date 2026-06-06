@@ -1,7 +1,8 @@
 from __future__ import annotations
+
 import json
 from typing import Any
-from urllib.request import urlopen, Request
+from urllib.request import Request, urlopen
 
 from src.adapters.base import LLMAdapter, LLMResponse, Provider
 
@@ -18,11 +19,13 @@ class OllamaAdapter(LLMAdapter):
         messages: list[dict[str, Any]],
         max_output_tokens: int,
         temperature: float = 1.0,
-        **kwargs,
+        **kwargs: Any,
     ) -> LLMResponse:
         payload: dict[str, Any] = {
             "model": model,
-            "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
+            "messages": [
+                {"role": m["role"], "content": m["content"]} for m in messages
+            ],
             "stream": False,
             "options": {
                 "temperature": temperature,
