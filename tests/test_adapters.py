@@ -46,11 +46,11 @@ def test_anthropic_adapter():
 
 def test_ollama_adapter(ollama_available):
     adapter = get_adapter("ollama")
-    resp = adapter.complete(model="gemma4:12b", messages=MESSAGES, max_output_tokens=32, temperature=0.0)
+    resp = adapter.complete(model="gemma4:12b", messages=MESSAGES, max_output_tokens=256, temperature=0.0)
     assert resp.text
     assert resp.total_tokens > 0
 
 
 def test_unknown_provider():
-    with pytest.raises(ValueError, match="Unknown provider"):
+    with pytest.raises(ValueError, match="is not a valid Provider"):
         get_adapter("unknown")

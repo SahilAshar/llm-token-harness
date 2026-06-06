@@ -5,11 +5,11 @@ from typing import Any
 
 from openai import OpenAI
 
-from src.adapters.base import LLMAdapter, LLMResponse
+from src.adapters.base import LLMAdapter, LLMResponse, Provider
 
 
 class OpenAIAdapter(LLMAdapter):
-    provider = "openai"
+    provider = Provider.OPENAI
 
     def __init__(self, api_key: str | None = None):
         self.client = OpenAI(api_key=api_key or os.environ["OPENAI_API_KEY"])

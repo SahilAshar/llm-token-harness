@@ -5,11 +5,11 @@ from typing import Any
 
 import anthropic
 
-from src.adapters.base import LLMAdapter, LLMResponse
+from src.adapters.base import LLMAdapter, LLMResponse, Provider
 
 
 class AnthropicAdapter(LLMAdapter):
-    provider = "anthropic"
+    provider = Provider.ANTHROPIC
 
     def __init__(self, api_key: str | None = None):
         self.client = anthropic.Anthropic(api_key=api_key or os.environ["ANTHROPIC_API_KEY"])

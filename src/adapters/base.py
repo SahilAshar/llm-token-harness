@@ -1,7 +1,14 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
+
+
+class Provider(StrEnum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    OLLAMA = "ollama"
 
 
 @dataclass(frozen=True)
@@ -18,7 +25,7 @@ class LLMResponse:
 
 
 class LLMAdapter(ABC):
-    provider: str
+    provider: Provider
 
     @abstractmethod
     def complete(

@@ -1,6 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
+from src.adapters.base import Provider
+
 
 @dataclass(frozen=True)
 class ModelPricing:
@@ -23,7 +25,7 @@ PRICING: dict[str, ModelPricing] = {
 }
 
 
-def get_pricing(model: str, provider: str) -> ModelPricing:
-    if provider == "ollama":
+def get_pricing(model: str, provider: Provider | str) -> ModelPricing:
+    if Provider(provider) == Provider.OLLAMA:
         return LOCAL_PRICING
     return PRICING.get(model, LOCAL_PRICING)

@@ -3,11 +3,11 @@ import json
 from typing import Any
 from urllib.request import urlopen, Request
 
-from src.adapters.base import LLMAdapter, LLMResponse
+from src.adapters.base import LLMAdapter, LLMResponse, Provider
 
 
 class OllamaAdapter(LLMAdapter):
-    provider = "ollama"
+    provider = Provider.OLLAMA
 
     def __init__(self, base_url: str = "http://localhost:11434"):
         self.base_url = base_url.rstrip("/")

@@ -1,15 +1,15 @@
-from src.adapters.base import LLMAdapter, LLMResponse
+from src.adapters.base import LLMAdapter, LLMResponse, Provider
 from src.adapters.openai import OpenAIAdapter
 from src.adapters.anthropic import AnthropicAdapter
 from src.adapters.ollama import OllamaAdapter
 
-ADAPTERS = {
-    "openai": OpenAIAdapter,
-    "anthropic": AnthropicAdapter,
-    "ollama": OllamaAdapter,
+ADAPTERS: dict[Provider, type[LLMAdapter]] = {
+    Provider.OPENAI: OpenAIAdapter,
+    Provider.ANTHROPIC: AnthropicAdapter,
+    Provider.OLLAMA: OllamaAdapter,
 }
 
-def get_adapter(provider: str, **kwargs) -> LLMAdapter:
-    if provider not in ADAPTERS:
-        raise ValueError(f"Unknown provider: {provider}. Available: {list(ADAPTERS.keys())}")
-    return ADAPTERS[provider](**kwargs)
+
+def get_adapter(provider: Provider | str, **kwargs: object) -> LLMAdapter:
+    key = Provider(provider)
+    return ADAPTERS[key](**kwargs)
