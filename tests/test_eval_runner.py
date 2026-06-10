@@ -98,7 +98,7 @@ class TestRunEval:
         assert summary.provider == "anthropic"
         assert [r.result.score for r in records] == [1, 0]
         assert all(r.latency_seconds >= 0 for r in records)
-        # Runner must pass all 5 tool schemas to the adapter.
+        # Runner must pass all 4 tool schemas to the adapter.
         assert adapter.calls[0]["tools"] == ALL_TOOLS
 
     def test_cost_attribution_uses_response_model(self) -> None:
@@ -158,3 +158,6 @@ class TestWriteResults:
         assert payload["summary"]["n_correct"] == 1
         assert len(payload["records"]) == 1
         assert payload["records"][0]["result"]["task_id"] == "t1"
+        # The full per-call batch must persist for downstream analysis
+        # (parallel-call propensity, decompose invocation rate).
+        assert payload["records"][0]["result"]["actual_tools"] == ["get_document"]

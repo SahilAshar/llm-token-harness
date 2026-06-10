@@ -26,6 +26,7 @@ class TestScoreTask:
         result = score_task(task, [])
         assert result.score == 0
         assert result.actual_tool == ""
+        assert result.actual_tools == []
 
     def test_wrong_tool(self) -> None:
         task = _make_task(tool="search")
@@ -212,7 +213,7 @@ class TestScoreTask:
         assert result.matched_args == ["query"]
         assert result.failed_args == ["top_k"]
 
-    def test_uses_first_tool_call(self) -> None:
+    def test_batch_any_match_first_call(self) -> None:
         task = _make_task(tool="search")
         result = score_task(
             task,
@@ -220,6 +221,65 @@ class TestScoreTask:
         )
         assert result.score == 1
         assert result.actual_tool == "search"
+        assert result.actual_tools == ["search", "get_document"]
+
+    def test_batch_any_match_second_call(self) -> None:
+        task = _make_task(
+            tool="get_document",
+            args=[
+                ExpectedArg(name="doc_id", match_type=ArgMatchType.EXACT, value="doc_3")
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(name="search", arguments={"query": "doc_3 contents"}),
+                ToolCall(name="get_document", arguments={"doc_id": "doc_3"}),
+            ],
+        )
+        assert result.score == 1
+        assert result.actual_tool == "get_document"
+        assert result.actual_tools == ["search", "get_document"]
+        assert result.matched_args == ["doc_id"]
+
+    def test_batch_right_name_wrong_args_then_full_match(self) -> None:
+        task = _make_task(
+            tool="get_document",
+            args=[
+                ExpectedArg(name="doc_id", match_type=ArgMatchType.EXACT, value="doc_3")
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(name="get_document", arguments={"doc_id": "doc_7"}),
+                ToolCall(name="get_document", arguments={"doc_id": "doc_3"}),
+            ],
+        )
+        assert result.score == 1
+        assert result.actual_tool == "get_document"
+        assert result.actual_tools == ["get_document", "get_document"]
+        assert result.matched_args == ["doc_id"]
+        assert result.failed_args == []
+
+    def test_batch_right_name_bad_args_everywhere(self) -> None:
+        task = _make_task(
+            tool="get_document",
+            args=[
+                ExpectedArg(name="doc_id", match_type=ArgMatchType.EXACT, value="doc_3")
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(name="get_document", arguments={"doc_id": "doc_7"}),
+                ToolCall(name="get_document", arguments={"doc_id": "doc_12"}),
+            ],
+        )
+        assert result.score == 0
+        assert result.actual_tool == "get_document"
+        assert result.actual_tools == ["get_document", "get_document"]
+        assert result.failed_args == ["doc_id"]
 
     def test_exact_match_dict_key_order_insensitive(self) -> None:
         task = _make_task(
@@ -311,7 +371,7 @@ class TestScoreTask:
 
     def test_exact_match_list_order_insensitive(self) -> None:
         task = _make_task(
-            tool="compare",
+            tool="search",
             args=[
                 ExpectedArg(
                     name="doc_ids",
@@ -324,7 +384,7 @@ class TestScoreTask:
             task,
             [
                 ToolCall(
-                    name="compare",
+                    name="search",
                     arguments={"doc_ids": ["DOC_7", "doc_3"]},
                 )
             ],
@@ -333,7 +393,7 @@ class TestScoreTask:
 
     def test_exact_match_list_wrong_element(self) -> None:
         task = _make_task(
-            tool="compare",
+            tool="search",
             args=[
                 ExpectedArg(
                     name="doc_ids",
@@ -346,7 +406,7 @@ class TestScoreTask:
             task,
             [
                 ToolCall(
-                    name="compare",
+                    name="search",
                     arguments={"doc_ids": ["doc_3", "doc_12"]},
                 )
             ],
@@ -355,7 +415,7 @@ class TestScoreTask:
 
     def test_exact_match_list_length_mismatch(self) -> None:
         task = _make_task(
-            tool="compare",
+            tool="search",
             args=[
                 ExpectedArg(
                     name="doc_ids",
@@ -368,7 +428,7 @@ class TestScoreTask:
             task,
             [
                 ToolCall(
-                    name="compare",
+                    name="search",
                     arguments={"doc_ids": ["doc_3", "doc_7", "doc_12"]},
                 )
             ],
@@ -377,7 +437,7 @@ class TestScoreTask:
 
     def test_exact_match_list_multiset_semantics(self) -> None:
         task = _make_task(
-            tool="compare",
+            tool="search",
             args=[
                 ExpectedArg(
                     name="doc_ids",
@@ -390,7 +450,7 @@ class TestScoreTask:
             task,
             [
                 ToolCall(
-                    name="compare",
+                    name="search",
                     arguments={"doc_ids": ["doc_3", "doc_7"]},
                 )
             ],
