@@ -18,7 +18,7 @@ Single-turn eval: each task is one prompt → one expected tool call. Multi-step
 |---|---|
 | `src/adapters/` | Provider adapters (OpenAI, Anthropic, Ollama) with unified `LLMAdapter` ABC |
 | `src/adapters/base.py` | `Provider` enum, `ToolCall`, `LLMResponse` (Pydantic models) |
-| `src/tools.py` | 5 search tool schemas in OpenAI function-calling format |
+| `src/tools.py` | 4 search tool schemas in OpenAI function-calling format |
 | `src/tasks.py` | `Task`, `ExpectedArg` models + JSON loader |
 | `src/scorer.py` | All-or-nothing scoring: tool name + all args must match |
 | `src/pricing.py` | Per-model token pricing, $0 for local/Ollama |
@@ -28,18 +28,18 @@ Single-turn eval: each task is one prompt → one expected tool call. Multi-step
 
 These are from the original math/sentiment harness and are excluded in `pyproject.toml` ruff config: `src/adapter.py`, `src/runner.py`, `src/suites.py`, `src/trial.py`, `src/result_logger.py`, `utils/`, `main.py`.
 
-### The 5 tools (QU → Strategy → Execution pipeline)
+### The 4 tools (QU → Strategy pipeline)
 
 - `search(query, filters?, top_k=5)` — semantic search with inline metadata filtering
 - `get_document(doc_id)` — fetch full doc by ID
 - `list_documents(filters?)` — metadata-only exploration
 - `query_decompose(query)` — break complex queries into sub-queries
-- `compare(doc_ids, aspect)` — cross-document comparison
 
 ### Scoring
 
 - **All-or-nothing:** score is 1 if tool name matches AND all required args match, 0 otherwise
-- **Two arg match types:** `exact` (doc_id, top_k — case-insensitive, type-coerced) and `keywords` (query, aspect — all keywords must appear in model's value)
+- **Batch-aware:** every tool call in the model's batch is evaluated; ANY fully matching call scores 1. `TaskResult.actual_tools` records all call names in order, so parallel-call propensity and decompose invocation rate fall out of the raw results
+- **Two arg match types:** `exact` (doc_id, top_k, filters — case-insensitive, type-coerced, dict key-order and list order insensitive) and `keywords` (query — all keywords must appear in model's value)
 - `tool_choice: "auto"` — models must decide WHETHER to use tools
 
 ## Code conventions
@@ -89,7 +89,7 @@ Key decisions and their rationale (don't relitigate — read first):
 
 1. **Search agent domain** — not generic tool-calling. Evaluates retrieval strategy, not retrieval results.
 2. **Single-turn tasks** — each task is one prompt → one tool call. Multi-step chains share a scenario_id.
-3. **5 realistic tools** — trimmed from 9. Mirrors real search APIs (LangChain, LlamaIndex, Azure AI Search). Cut: summarize, query_expand, entity_extract, passage_retrieve, metadata_filter (absorbed into search filters).
+3. **4 realistic tools** — trimmed from 9, then from 5. Mirrors real search APIs (LangChain, LlamaIndex, Azure AI Search). Cut: summarize, query_expand, entity_extract, passage_retrieve, metadata_filter (absorbed into search filters). `compare` was also removed after dataset red-teaming: comparison is in-context generation work after retrieval, not a retrieval operation, and no real search API exposes it standalone.
 4. **All-or-nothing scoring** — binary 1/0. Partial credit backlogged for V2.
 5. **Keyword-contains for free-text args** — no NLP deps. We control both sides (task authoring + expected args).
 6. **Conversation history for multi-step state** — real message history, not text summaries.
@@ -99,6 +99,4 @@ Key decisions and their rationale (don't relitigate — read first):
 
 ## What's next
 
-- Task dataset (`data/tasks/search_agent_v1.json`) — 15 tasks covering all 5 tools
-- Runner + CPC computation + CLI
 - Visualization (quality vs cost scatter plot)

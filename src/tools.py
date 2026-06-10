@@ -1,9 +1,8 @@
 """Search agent tool definitions in OpenAI function-calling format.
 
-5 tools modeling a realistic search API:
+4 tools modeling a realistic search API:
   QU:        query_decompose
   Strategy:  search, get_document, list_documents
-  Execution: compare
 """
 
 from __future__ import annotations
@@ -121,44 +120,11 @@ QUERY_DECOMPOSE_TOOL: dict[str, Any] = {
     },
 }
 
-COMPARE_TOOL: dict[str, Any] = {
-    "type": "function",
-    "function": {
-        "name": "compare",
-        "description": (
-            "Compare two or more documents on a specific aspect."
-            " Use after retrieving documents when the user needs"
-            " cross-document analysis, differences, or trends."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "doc_ids": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of document IDs to compare.",
-                    "minItems": 2,
-                },
-                "aspect": {
-                    "type": "string",
-                    "description": (
-                        "The dimension to compare on (e.g."
-                        " 'indemnification terms', 'pricing',"
-                        " 'effective dates')."
-                    ),
-                },
-            },
-            "required": ["doc_ids", "aspect"],
-        },
-    },
-}
-
 ALL_TOOLS: list[dict[str, Any]] = [
     SEARCH_TOOL,
     GET_DOCUMENT_TOOL,
     LIST_DOCUMENTS_TOOL,
     QUERY_DECOMPOSE_TOOL,
-    COMPARE_TOOL,
 ]
 
 

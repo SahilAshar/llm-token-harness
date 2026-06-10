@@ -1,0 +1,535 @@
+{
+  "tasks": [
+    {
+      "task_id": "halverson_dispute_01",
+      "scenario_id": "halverson_dispute",
+      "step": 1,
+      "description": "Multi-entity, multi-aspect dispute question: correct first move is query decomposition, not diving into search.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "We're heading into a dispute with Halverson Logistics over service failures on the cold chain work. I need to understand how indemnification and liability caps are allocated across all of our Halverson agreements, and how that allocation compares to what we agreed with Apex Components in their MSA."
+        }
+      ],
+      "expected": {
+        "tool": "query_decompose",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "halverson",
+              "apex"
+            ]
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "halverson_dispute_02",
+      "scenario_id": "halverson_dispute",
+      "step": 2,
+      "description": "After decomposition, execute the first sub-query: search for indemnification/liability language in Halverson agreements.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "We're heading into a dispute with Halverson Logistics over service failures on the cold chain work. I need to understand how indemnification and liability caps are allocated across all of our Halverson agreements, and how that allocation compares to what we agreed with Apex Components in their MSA."
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "query_decompose",
+              "arguments": {
+                "query": "How are indemnification and liability caps allocated across our Halverson Logistics agreements, and how does that compare to the Apex Components MSA?"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"sub_queries\": [{\"id\": 1, \"query\": \"indemnification and limitation of liability provisions in agreements with Halverson Logistics\"}, {\"id\": 2, \"query\": \"indemnification and limitation of liability provisions in the Apex Components master services agreement\"}, {\"id\": 3, \"query\": \"compare liability allocation between the Halverson agreements and the Apex MSA\"}]}"
+        }
+      ],
+      "expected": {
+        "tool": "search",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "halverson",
+              "indemnification"
+            ]
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "halverson_dispute_03",
+      "scenario_id": "halverson_dispute",
+      "step": 3,
+      "description": "Halverson results in hand; execute the second sub-query: search for the Apex indemnification terms.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "We're heading into a dispute with Halverson Logistics over service failures on the cold chain work. I need to understand how indemnification and liability caps are allocated across all of our Halverson agreements, and how that allocation compares to what we agreed with Apex Components in their MSA."
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "query_decompose",
+              "arguments": {
+                "query": "How are indemnification and liability caps allocated across our Halverson Logistics agreements, and how does that compare to the Apex Components MSA?"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"sub_queries\": [{\"id\": 1, \"query\": \"indemnification and limitation of liability provisions in agreements with Halverson Logistics\"}, {\"id\": 2, \"query\": \"indemnification and limitation of liability provisions in the Apex Components master services agreement\"}, {\"id\": 3, \"query\": \"compare liability allocation between the Halverson agreements and the Apex MSA\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "search",
+              "arguments": {
+                "query": "indemnification and limitation of liability provisions in agreements with Halverson Logistics"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"results\": [{\"doc_id\": \"doc_07\", \"title\": \"Master Services Agreement \\u2014 Halverson Logistics\", \"type\": \"msa\", \"date\": \"2024-04-15\", \"score\": 0.92, \"passage\": \"Section 9 (Indemnification): Halverson shall indemnify Meridian for third-party claims arising from Halverson's negligence; aggregate liability capped at fees paid in the twelve months preceding the claim.\"}, {\"doc_id\": \"doc_13\", \"title\": \"SOW #2 under Halverson MSA \\u2014 Cold Chain Pilot\", \"type\": \"sow\", \"date\": \"2025-06-10\", \"score\": 0.86, \"passage\": \"Section 6 (Remedies): Service credits under Exhibit B are Meridian's exclusive remedy for missed temperature-control SLAs; Section 9 caps of the MSA apply.\"}, {\"doc_id\": \"doc_12\", \"title\": \"SOW #1 under Halverson MSA \\u2014 Midwest Distribution Services\", \"type\": \"sow\", \"date\": \"2024-05-30\", \"score\": 0.74, \"passage\": \"Section 5: Liability for distribution services is governed by Section 9 of the MSA; no SOW-specific cap.\"}]}"
+        }
+      ],
+      "expected": {
+        "tool": "search",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "apex",
+              "indemnification"
+            ]
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "easton_amendment_01",
+      "scenario_id": "easton_amendment",
+      "step": 1,
+      "description": "User supplies a doc_id explicitly; correct first move is direct fetch, not search.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Pull up doc_19, the Easton warehouse lease. I remember we signed an amendment last year when we expanded into the adjacent bay — find it, and then walk me through exactly how it changed the lease term and our renewal options."
+        }
+      ],
+      "expected": {
+        "tool": "get_document",
+        "args": {
+          "doc_id": {
+            "type": "exact",
+            "value": "doc_19"
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "easton_amendment_02",
+      "scenario_id": "easton_amendment",
+      "step": 2,
+      "description": "Base lease retrieved; next step is locating the amendment, whose ID is unknown. The filtered search is the unambiguous move: the type=lease filter narrows the work to the 3 lease docs.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Pull up doc_19, the Easton warehouse lease. I remember we signed an amendment last year when we expanded into the adjacent bay — find it, and then walk me through exactly how it changed the lease term and our renewal options."
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "get_document",
+              "arguments": {
+                "doc_id": "doc_19"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"doc_id\": \"doc_19\", \"title\": \"Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"author\": \"D. Okafor\", \"date\": \"2024-06-15\", \"content\": \"Premises: Bays 4-5, Easton Distribution Center, 88,000 sq ft. Initial term: five (5) years, expiring 2029-06-14. Renewal: one (1) three-year option, exercisable upon twelve (12) months' prior written notice. Base rent: $7.90 per sq ft per year, 3% annual escalator. Permitted use: warehousing and distribution. Assignment requires landlord consent...\"}"
+        }
+      ],
+      "expected": {
+        "tool": "search",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "amendment"
+            ]
+          },
+          "filters": {
+            "type": "exact",
+            "value": {
+              "type": "lease"
+            }
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "easton_amendment_03",
+      "scenario_id": "easton_amendment",
+      "step": 3,
+      "description": "Amendment located but the search snippet shows recitals only; the user asked exactly what changed, so fetch the full amendment. The doc_id (doc_20) is only knowable from the search result in history, not the user turn — the harder fetch case.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Pull up doc_19, the Easton warehouse lease. I remember we signed an amendment last year when we expanded into the adjacent bay — find it, and then walk me through exactly how it changed the lease term and our renewal options."
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "get_document",
+              "arguments": {
+                "doc_id": "doc_19"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"doc_id\": \"doc_19\", \"title\": \"Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"author\": \"D. Okafor\", \"date\": \"2024-06-15\", \"content\": \"Premises: Bays 4-5, Easton Distribution Center, 88,000 sq ft. Initial term: five (5) years, expiring 2029-06-14. Renewal: one (1) three-year option, exercisable upon twelve (12) months' prior written notice. Base rent: $7.90 per sq ft per year, 3% annual escalator. Permitted use: warehousing and distribution. Assignment requires landlord consent...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "search",
+              "arguments": {
+                "query": "Easton warehouse lease amendment expansion adjacent bay"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"results\": [{\"doc_id\": \"doc_20\", \"title\": \"First Amendment to Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"date\": \"2025-08-04\", \"score\": 0.95, \"passage\": \"RECITALS: WHEREAS the parties desire to expand the Premises to include Bay 6 of the Easton Distribution Center and to modify the term and renewal provisions of the Lease as set forth herein...\"}]}"
+        }
+      ],
+      "expected": {
+        "tool": "get_document",
+        "args": {
+          "doc_id": {
+            "type": "exact",
+            "value": "doc_20"
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "corvid_fetch_01",
+      "scenario_id": "corvid_fetch",
+      "step": 1,
+      "description": "Obvious direct fetch: user names a doc_id and wants the full document.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Fetch doc_08 for me — I need to read the Corvid master services agreement in full before our renewal call this afternoon."
+        }
+      ],
+      "expected": {
+        "tool": "get_document",
+        "args": {
+          "doc_id": {
+            "type": "exact",
+            "value": "doc_08"
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "stonebridge_term_01",
+      "scenario_id": "stonebridge_term",
+      "step": 1,
+      "description": "Subtle fetch-vs-search: question is about clause content, but the user already identified the exact document — get_document beats search.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "I've got doc_03 open in front of me — the Stonebridge NDA. How long do the confidentiality obligations survive after the agreement terminates?"
+        }
+      ],
+      "expected": {
+        "tool": "get_document",
+        "args": {
+          "doc_id": {
+            "type": "exact",
+            "value": "doc_03"
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "nda_inventory_01",
+      "scenario_id": "nda_inventory",
+      "step": 1,
+      "description": "Inventory-not-content: counting NDAs and listing counterparties is a metadata question — list_documents with a type filter beats search.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "How many NDAs do we currently have on file, and who are the counterparties?"
+        }
+      ],
+      "expected": {
+        "tool": "list_documents",
+        "args": {
+          "filters": {
+            "type": "exact",
+            "value": {
+              "type": "nda"
+            }
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "q1_2025_inventory_01",
+      "scenario_id": "q1_2025_inventory",
+      "step": 1,
+      "description": "Inventory with a date range: user wants titles/types/dates only — list_documents with start_date/end_date filters.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Give me a list of every agreement we executed in the first quarter of 2025 — titles, types, and effective dates are all I need."
+        }
+      ],
+      "expected": {
+        "tool": "list_documents",
+        "args": {
+          "filters": {
+            "type": "exact",
+            "value": {
+              "start_date": "2025-01-01",
+              "end_date": "2025-03-31"
+            }
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "vendor_renewal_decompose_01",
+      "scenario_id": "vendor_renewal_decompose",
+      "step": 1,
+      "description": "Three distinct information needs across two document families — complex enough that query_decompose is the right first move.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Which of our vendor agreements auto-renew, how much notice do we have to give to terminate each one, and do any of those notice deadlines land before the renewal-decision date on the Easton warehouse lease?"
+        }
+      ],
+      "expected": {
+        "tool": "query_decompose",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "vendor",
+              "renew"
+            ]
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "indemnification_2024_01",
+      "scenario_id": "indemnification_2024",
+      "step": 1,
+      "description": "Content search where the date constraint belongs in filters, not in the query string — the canonical filtered-search task.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Find the indemnification language in agreements we signed in 2024."
+        }
+      ],
+      "expected": {
+        "tool": "search",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "indemnification"
+            ]
+          },
+          "filters": {
+            "type": "exact",
+            "value": {
+              "start_date": "2024-01-01",
+              "end_date": "2024-12-31"
+            }
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "nonsolicit_search_01",
+      "scenario_id": "nonsolicit_search",
+      "step": 1,
+      "description": "Plain semantic content search across the whole corpus — no filters needed, search is the obvious tool.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "What do our agreements say about non-solicitation of employees?"
+        }
+      ],
+      "expected": {
+        "tool": "search",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "solicit"
+            ]
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "termination_topk_01",
+      "scenario_id": "termination_topk",
+      "step": 1,
+      "description": "Search with an explicit result-count requirement — tests top_k argument extraction alongside query formulation.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Pull the ten most relevant passages on termination for convenience from across the repository."
+        }
+      ],
+      "expected": {
+        "tool": "search",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "termination",
+              "convenience"
+            ]
+          },
+          "top_k": {
+            "type": "exact",
+            "value": 10
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "vendor_autorenew_01",
+      "scenario_id": "vendor_autorenew",
+      "step": 1,
+      "description": "Inventory question scoped to one contract family — the type filter is the strategy; the agent reads auto-renewal status off the returned tags.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have four tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), and query_decompose (break a complex request into sub-queries). Choose the most direct tool for each request, apply metadata filters when they narrow the work, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Which of our vendor agreements are set to auto-renew? Just give me the vendor names and effective dates."
+        }
+      ],
+      "expected": {
+        "tool": "list_documents",
+        "args": {
+          "filters": {
+            "type": "exact",
+            "value": {
+              "type": "vendor_agreement"
+            }
+          }
+        }
+      },
+      "scoring_weights": {}
+    }
+  ]
+}
