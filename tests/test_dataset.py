@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from src.tasks import Task, load_tasks
-from src.tools import get_tool_names
+from src.tools import get_search_tool_names, get_tool_names
 
 DATASET_PATH = Path("data/tasks/search_agent_v1.json")
 
@@ -30,10 +30,13 @@ def test_loads_15_tasks(tasks: list[Task]) -> None:
     assert len(tasks) == 15
 
 
-def test_expected_tools_exist(tasks: list[Task]) -> None:
-    tool_names = get_tool_names()
+def test_expected_tools_are_real_tools(tasks: list[Task]) -> None:
+    search_tool_names = get_search_tool_names()
+    distractor_names = set(get_tool_names()) - set(search_tool_names)
+    assert distractor_names, "harness should offer distractor tools"
     for task in tasks:
-        assert task.expected_tool in tool_names, task.task_id
+        assert task.expected_tool in search_tool_names, task.task_id
+        assert task.expected_tool not in distractor_names, task.task_id
 
 
 def test_tool_distribution(tasks: list[Task]) -> None:
