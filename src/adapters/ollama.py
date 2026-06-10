@@ -69,7 +69,9 @@ class OllamaAdapter(LLMAdapter):
             output_tokens=output_tokens,
             total_tokens=input_tokens + output_tokens,
             reasoning_tokens=len(thinking.split()) if thinking else 0,
-            model=model,
+            # Prefer the model name reported in the response so cost
+            # attribution always keys off what actually served the request.
+            model=data.get("model") or model,
             tool_calls=tool_calls,
             raw=data,
         )
