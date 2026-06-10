@@ -18,7 +18,7 @@ Single-turn eval: each task is one prompt → one expected tool call. Multi-step
 |---|---|
 | `src/adapters/` | Provider adapters (OpenAI, Anthropic, Ollama) with unified `LLMAdapter` ABC |
 | `src/adapters/base.py` | `Provider` enum, `ToolCall`, `LLMResponse` (Pydantic models) |
-| `src/tools.py` | 4 search tool schemas in OpenAI function-calling format |
+| `src/tools.py` | 4 search tool schemas + 3 distractor tool schemas in OpenAI function-calling format |
 | `src/tasks.py` | `Task`, `ExpectedArg` models + JSON loader |
 | `src/scorer.py` | All-or-nothing scoring: tool name + all args must match |
 | `src/pricing.py` | Per-model token pricing, $0 for local/Ollama |
@@ -34,6 +34,12 @@ These are from the original math/sentiment harness and are excluded in `pyprojec
 - `get_document(doc_id)` — fetch full doc by ID
 - `list_documents(filters?)` — metadata-only exploration
 - `query_decompose(query)` — break complex queries into sub-queries
+
+### The 3 distractor tools
+
+- `web_search(query)`, `tag_document(doc_id, tags)`, `create_alert(query, frequency?)` — plausible schemas offered to models alongside the real tools (`ALL_TOOLS = SEARCH_TOOLS + DISTRACTOR_TOOLS`) but never the correct answer for any task
+- Why: defends against saturation by testing tool *discrimination*, not just tool use (MCPAgentBench pattern)
+- Distractor-pick rate is tracked from `actual_tools` in raw results as an unscored behavioral metric
 
 ### Scoring
 
