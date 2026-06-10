@@ -213,3 +213,6 @@ __marimo__/
 output.txt
 prompt.txt
 .vscode/
+
+# Lock mechanism is requirements .in -> compiled .txt; ignore uv's own lock
+uv.lock

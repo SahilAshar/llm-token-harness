@@ -21,7 +21,7 @@ class AnthropicAdapter(LLMAdapter):
         model: str,
         messages: list[dict[str, Any]],
         max_output_tokens: int,
-        temperature: float = 1.0,
+        temperature: float | None = None,
         tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
@@ -34,12 +34,22 @@ class AnthropicAdapter(LLMAdapter):
             else:
                 chat_messages.append({"role": m["role"], "content": m["content"]})
 
+        # claude-fable-5 returns HTTP 400 for `temperature` and for an
+        # explicit `thinking: {type: "disabled"}` param. So: never send a
+        # `thinking` param, and only send `temperature` when the caller
+        # explicitly passes one.
         call_kwargs: dict[str, Any] = dict(
             model=model,
             max_tokens=max_output_tokens,
-            temperature=temperature,
             messages=chat_messages,
         )
+        if temperature is not None:
+            call_kwargs["temperature"] = temperature
+        # Optional adaptive-thinking effort level (e.g. "low" | "medium" |
+        # "high"), only sent when provided.
+        effort = kwargs.get("effort")
+        if effort is not None:
+            call_kwargs["output_config"] = {"effort": effort}
         if system_text:
             call_kwargs["system"] = system_text
         if tools:

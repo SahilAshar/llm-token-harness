@@ -1,4 +1,4 @@
-.PHONY: all lint test clean
+.PHONY: all lint test eval clean
 
 install: .venv requirements.txt requirements-dev.txt
 	uv pip install -r requirements-dev.txt
@@ -21,6 +21,10 @@ lint:
 
 test:
 	uv run pytest tests/
+
+# Usage: make eval MODEL=claude-haiku-4-5 PROVIDER=anthropic TASKS=data/tasks/search_agent_v1.json [EFFORT=medium]
+eval:
+	uv run python -m src.cli --model $(MODEL) --provider $(PROVIDER) --tasks $(TASKS) $(if $(EFFORT),--effort $(EFFORT))
 
 clean:
 	rm -rf .venv .mypy_cache .ruff_cache .pytest_cache __pycache__ requirements.txt requirements-dev.txt
