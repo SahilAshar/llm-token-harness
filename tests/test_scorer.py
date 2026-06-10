@@ -220,3 +220,179 @@ class TestScoreTask:
         )
         assert result.score == 1
         assert result.actual_tool == "search"
+
+    def test_exact_match_dict_key_order_insensitive(self) -> None:
+        task = _make_task(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="filters",
+                    match_type=ArgMatchType.EXACT,
+                    value={"start_date": "2024-01-01", "end_date": "2024-12-31"},
+                ),
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "filters": {
+                            "end_date": "2024-12-31",
+                            "start_date": "2024-01-01",
+                        }
+                    },
+                )
+            ],
+        )
+        assert result.score == 1
+
+    def test_exact_match_dict_wrong_value(self) -> None:
+        task = _make_task(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="filters",
+                    match_type=ArgMatchType.EXACT,
+                    value={"type": "NDA"},
+                ),
+            ],
+        )
+        result = score_task(
+            task,
+            [ToolCall(name="search", arguments={"filters": {"type": "MSA"}})],
+        )
+        assert result.score == 0
+
+    def test_exact_match_dict_extra_key(self) -> None:
+        task = _make_task(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="filters",
+                    match_type=ArgMatchType.EXACT,
+                    value={"type": "NDA"},
+                ),
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={"filters": {"type": "NDA", "author": "Smith"}},
+                )
+            ],
+        )
+        assert result.score == 0
+
+    def test_exact_match_nested_dict_values(self) -> None:
+        task = _make_task(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="filters",
+                    match_type=ArgMatchType.EXACT,
+                    value={"type": "NDA", "year": 2024},
+                ),
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={"filters": {"year": 2024, "type": "nda"}},
+                )
+            ],
+        )
+        assert result.score == 1
+
+    def test_exact_match_list_order_insensitive(self) -> None:
+        task = _make_task(
+            tool="compare",
+            args=[
+                ExpectedArg(
+                    name="doc_ids",
+                    match_type=ArgMatchType.EXACT,
+                    value=["doc_3", "doc_7"],
+                ),
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="compare",
+                    arguments={"doc_ids": ["DOC_7", "doc_3"]},
+                )
+            ],
+        )
+        assert result.score == 1
+
+    def test_exact_match_list_wrong_element(self) -> None:
+        task = _make_task(
+            tool="compare",
+            args=[
+                ExpectedArg(
+                    name="doc_ids",
+                    match_type=ArgMatchType.EXACT,
+                    value=["doc_3", "doc_7"],
+                ),
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="compare",
+                    arguments={"doc_ids": ["doc_3", "doc_12"]},
+                )
+            ],
+        )
+        assert result.score == 0
+
+    def test_exact_match_list_length_mismatch(self) -> None:
+        task = _make_task(
+            tool="compare",
+            args=[
+                ExpectedArg(
+                    name="doc_ids",
+                    match_type=ArgMatchType.EXACT,
+                    value=["doc_3", "doc_7"],
+                ),
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="compare",
+                    arguments={"doc_ids": ["doc_3", "doc_7", "doc_12"]},
+                )
+            ],
+        )
+        assert result.score == 0
+
+    def test_exact_match_list_multiset_semantics(self) -> None:
+        task = _make_task(
+            tool="compare",
+            args=[
+                ExpectedArg(
+                    name="doc_ids",
+                    match_type=ArgMatchType.EXACT,
+                    value=["doc_3", "doc_3"],
+                ),
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="compare",
+                    arguments={"doc_ids": ["doc_3", "doc_7"]},
+                )
+            ],
+        )
+        assert result.score == 0

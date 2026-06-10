@@ -24,6 +24,24 @@ class TaskResult(BaseModel, frozen=True):
 
 
 def _match_exact(expected: Any, actual: Any) -> bool:
+    if isinstance(expected, dict) and isinstance(actual, dict):
+        exp = {str(k).lower(): v for k, v in expected.items()}
+        act = {str(k).lower(): v for k, v in actual.items()}
+        return exp.keys() == act.keys() and all(
+            _match_exact(v, act[k]) for k, v in exp.items()
+        )
+    if isinstance(expected, list) and isinstance(actual, list):
+        if len(expected) != len(actual):
+            return False
+        remaining = list(actual)
+        for exp_item in expected:
+            for i, act_item in enumerate(remaining):
+                if _match_exact(exp_item, act_item):
+                    del remaining[i]
+                    break
+            else:
+                return False
+        return True
     if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
         return expected == actual
     return str(expected).lower() == str(actual).lower()
