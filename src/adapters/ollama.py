@@ -7,6 +7,33 @@ from urllib.request import Request, urlopen
 from src.adapters.base import LLMAdapter, LLMResponse, Provider, ToolCall
 
 
+def convert_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert canonical task messages to Ollama chat format.
+
+    Ollama accepts ``role: "tool"`` messages directly and takes
+    assistant tool calls as ``{function: {name, arguments}}`` with
+    arguments as an object. Content must be a string, never null.
+    """
+    converted: list[dict[str, Any]] = []
+    for m in messages:
+        out: dict[str, Any] = {
+            "role": m["role"],
+            "content": m.get("content") or "",
+        }
+        if m["role"] == "assistant" and m.get("tool_calls"):
+            out["tool_calls"] = [
+                {
+                    "function": {
+                        "name": tc["name"],
+                        "arguments": tc["arguments"],
+                    }
+                }
+                for tc in m["tool_calls"]
+            ]
+        converted.append(out)
+    return converted
+
+
 class OllamaAdapter(LLMAdapter):
     provider = Provider.OLLAMA
 
@@ -24,9 +51,7 @@ class OllamaAdapter(LLMAdapter):
     ) -> LLMResponse:
         payload: dict[str, Any] = {
             "model": model,
-            "messages": [
-                {"role": m["role"], "content": m["content"]} for m in messages
-            ],
+            "messages": convert_messages(messages),
             "stream": False,
             "options": {
                 "temperature": temperature,
