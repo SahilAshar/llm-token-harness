@@ -8,6 +8,13 @@ a full match against the primary expectation OR any alternative
 scores 1, with no partial credit across alternatives. The full
 list of call names is recorded so parallel-call behavior can be
 analyzed downstream.
+
+Parallel tasks (``expected_parallel``) invert the quantifier: EVERY
+spec must be matched by some call in the batch (any-call-per-spec,
+all-specs-required). Per-spec match results are recorded in
+``parallel_matched``/``parallel_expected``/``parallel_failed_specs``
+so partial parallel behavior ("issued 1 of 2 expected calls") falls
+out of the raw results even though the score stays all-or-nothing.
 """
 
 from __future__ import annotations
@@ -30,6 +37,11 @@ class TaskResult(BaseModel, frozen=True):
     actual_args: dict[str, Any] | None
     matched_args: list[str]
     failed_args: list[str]
+    # Parallel-task fields (None for single-call tasks). Spec labels
+    # are "{index}:{tool}" since parallel specs can share a tool name.
+    parallel_expected: int | None = None
+    parallel_matched: int | None = None
+    parallel_failed_specs: list[str] | None = None
 
 
 def _match_exact(expected: Any, actual: Any) -> bool:
@@ -85,17 +97,55 @@ def _split_args(
     return matched, failed
 
 
+def _score_parallel(
+    task: Task, specs: list[ExpectedCall], tool_calls: list[ToolCall]
+) -> TaskResult:
+    matched_count = 0
+    failed_specs: list[str] = []
+    for i, spec in enumerate(specs):
+        satisfied = any(
+            tc.name == spec.tool and not _split_args(spec.args, tc)[1]
+            for tc in tool_calls
+        )
+        if satisfied:
+            matched_count += 1
+        else:
+            failed_specs.append(f"{i}:{spec.tool}")
+    return TaskResult(
+        task_id=task.task_id,
+        score=1 if not failed_specs else 0,
+        expected_tool=" + ".join(spec.tool for spec in specs),
+        actual_tool=tool_calls[0].name if tool_calls else "",
+        actual_tools=[tc.name for tc in tool_calls],
+        actual_args=None,
+        matched_args=[],
+        failed_args=[],
+        parallel_expected=len(specs),
+        parallel_matched=matched_count,
+        parallel_failed_specs=failed_specs,
+    )
+
+
 def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
     """Score a batch of tool calls against the task's expectation.
 
-    Any call in the batch that fully matches the primary expectation
-    or any entry in ``expected_alternatives`` (tool name + all
-    expected args) scores 1. ``actual_tool`` is the call used for arg
-    reporting: the fully matching call if one exists, otherwise the
-    first call whose name matches the primary expected tool, otherwise
-    the first call in the batch. On failure, arg reporting is always
-    against the primary expectation.
+    Single-call tasks: any call in the batch that fully matches the
+    primary expectation or any entry in ``expected_alternatives``
+    (tool name + all expected args) scores 1. ``actual_tool`` is the
+    call used for arg reporting: the fully matching call if one
+    exists, otherwise the first call whose name matches the primary
+    expected tool, otherwise the first call in the batch. On failure,
+    arg reporting is always against the primary expectation.
+
+    Parallel tasks (``expected_parallel`` set): scores 1 only if EVERY
+    spec is fully matched by at least one call in the batch. Per-spec
+    results land in the ``parallel_*`` fields; ``expected_tool`` is
+    the joined spec tool names and the per-arg report fields stay
+    empty.
     """
+    if task.expected_parallel is not None:
+        return _score_parallel(task, task.expected_parallel, tool_calls)
+
     actual_tools = [tc.name for tc in tool_calls]
 
     if not tool_calls:

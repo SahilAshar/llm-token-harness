@@ -576,3 +576,130 @@ class TestExpectedAlternatives:
             ],
         )
         assert result.score == 0
+
+
+def _make_parallel_task(specs: list[ExpectedCall]) -> Task:
+    return Task(
+        task_id="parallel_01",
+        scenario_id="parallel",
+        step=1,
+        description="Parallel test task",
+        messages=[{"role": "user", "content": "test"}],
+        expected_parallel=specs,
+    )
+
+
+class TestExpectedParallel:
+    _SPECS = [
+        ExpectedCall(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["halverson"],
+                ),
+            ],
+        ),
+        ExpectedCall(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["apex"],
+                ),
+            ],
+        ),
+    ]
+    _HALVERSON = ToolCall(
+        name="search", arguments={"query": "halverson indemnification"}
+    )
+    _APEX = ToolCall(name="search", arguments={"query": "apex liability caps"})
+
+    def test_all_specs_matched(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(task, [self._HALVERSON, self._APEX])
+        assert result.score == 1
+        assert result.parallel_expected == 2
+        assert result.parallel_matched == 2
+        assert result.parallel_failed_specs == []
+        assert result.expected_tool == "search + search"
+        assert result.actual_tools == ["search", "search"]
+
+    def test_call_order_does_not_matter(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        assert score_task(task, [self._APEX, self._HALVERSON]).score == 1
+
+    def test_partial_batch_no_credit(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(task, [self._HALVERSON])
+        assert result.score == 0
+        assert result.parallel_expected == 2
+        assert result.parallel_matched == 1
+        assert result.parallel_failed_specs == ["1:search"]
+
+    def test_no_tool_calls(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(task, [])
+        assert result.score == 0
+        assert result.parallel_matched == 0
+        assert result.actual_tool == ""
+        assert result.parallel_failed_specs == ["0:search", "1:search"]
+
+    def test_right_tools_wrong_args_no_credit(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                self._HALVERSON,
+                ToolCall(name="search", arguments={"query": "stonebridge nda"}),
+            ],
+        )
+        assert result.score == 0
+        assert result.parallel_matched == 1
+
+    def test_extra_calls_do_not_hurt(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(name="list_documents"),
+                self._HALVERSON,
+                self._APEX,
+            ],
+        )
+        assert result.score == 1
+
+    def test_mixed_tool_specs(self) -> None:
+        task = _make_parallel_task(
+            [
+                self._SPECS[0],
+                ExpectedCall(
+                    tool="get_document",
+                    args=[
+                        ExpectedArg(
+                            name="doc_id",
+                            match_type=ArgMatchType.EXACT,
+                            value="doc_3",
+                        ),
+                    ],
+                ),
+            ]
+        )
+        good = [
+            self._HALVERSON,
+            ToolCall(name="get_document", arguments={"doc_id": "doc_3"}),
+        ]
+        result = score_task(task, good)
+        assert result.score == 1
+        assert result.expected_tool == "search + get_document"
+        bad = [self._HALVERSON, self._APEX]
+        assert score_task(task, bad).score == 0
+
+    def test_single_call_tasks_have_no_parallel_fields(self) -> None:
+        task = _make_task(tool="search")
+        result = score_task(task, [ToolCall(name="search")])
+        assert result.parallel_expected is None
+        assert result.parallel_matched is None
+        assert result.parallel_failed_specs is None
