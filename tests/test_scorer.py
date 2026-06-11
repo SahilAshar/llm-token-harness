@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from src.adapters.base import ToolCall
 from src.scorer import score_task
-from src.tasks import ArgMatchType, ExpectedArg, Task
+from src.tasks import ArgMatchType, ExpectedArg, ExpectedCall, Task
 
 
 def _make_task(
     tool: str = "search",
     args: list[ExpectedArg] | None = None,
+    alternatives: list[ExpectedCall] | None = None,
 ) -> Task:
     return Task(
         task_id="test_01",
@@ -17,6 +18,7 @@ def _make_task(
         messages=[{"role": "user", "content": "test"}],
         expected_tool=tool,
         expected_args=args or [],
+        expected_alternatives=alternatives or [],
     )
 
 
@@ -452,6 +454,124 @@ class TestScoreTask:
                 ToolCall(
                     name="search",
                     arguments={"doc_ids": ["doc_3", "doc_7"]},
+                )
+            ],
+        )
+        assert result.score == 0
+
+
+class TestExpectedAlternatives:
+    _ALTERNATIVE = ExpectedCall(
+        tool="search",
+        args=[
+            ExpectedArg(
+                name="query", match_type=ArgMatchType.KEYWORDS, value=["auto-renew"]
+            ),
+            ExpectedArg(
+                name="filters",
+                match_type=ArgMatchType.EXACT,
+                value={"type": "vendor_agreement"},
+            ),
+        ],
+    )
+
+    def _make_task_with_alternative(self) -> Task:
+        return _make_task(
+            tool="list_documents",
+            args=[
+                ExpectedArg(
+                    name="filters",
+                    match_type=ArgMatchType.EXACT,
+                    value={"type": "vendor_agreement"},
+                ),
+            ],
+            alternatives=[self._ALTERNATIVE],
+        )
+
+    def test_no_alternatives_scores_as_before(self) -> None:
+        task = _make_task(
+            tool="list_documents",
+            args=[
+                ExpectedArg(
+                    name="filters",
+                    match_type=ArgMatchType.EXACT,
+                    value={"type": "vendor_agreement"},
+                ),
+            ],
+        )
+        good = ToolCall(
+            name="list_documents", arguments={"filters": {"type": "vendor_agreement"}}
+        )
+        bad = ToolCall(
+            name="search",
+            arguments={
+                "query": "auto-renew",
+                "filters": {"type": "vendor_agreement"},
+            },
+        )
+        assert score_task(task, [good]).score == 1
+        assert score_task(task, [bad]).score == 0
+
+    def test_primary_match_still_scores(self) -> None:
+        task = self._make_task_with_alternative()
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="list_documents",
+                    arguments={"filters": {"type": "vendor_agreement"}},
+                )
+            ],
+        )
+        assert result.score == 1
+        assert result.actual_tool == "list_documents"
+
+    def test_primary_fails_alternative_matches(self) -> None:
+        task = self._make_task_with_alternative()
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "vendor agreements with auto-renewal",
+                        "filters": {"type": "vendor_agreement"},
+                    },
+                )
+            ],
+        )
+        assert result.score == 1
+        assert result.actual_tool == "search"
+        assert result.matched_args == ["query", "filters"]
+        assert result.failed_args == []
+
+    def test_primary_and_alternatives_all_fail(self) -> None:
+        task = self._make_task_with_alternative()
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={"query": "vendor agreements with auto-renewal"},
+                )
+            ],
+        )
+        assert result.score == 0
+        # Failure reporting stays anchored to the primary expectation.
+        assert result.expected_tool == "list_documents"
+        assert result.failed_args == ["filters"]
+
+    def test_partial_alternative_match_no_credit(self) -> None:
+        task = self._make_task_with_alternative()
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "renewal terms",
+                        "filters": {"type": "vendor_agreement"},
+                    },
                 )
             ],
         )

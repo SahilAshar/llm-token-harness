@@ -44,6 +44,16 @@ def test_tool_distribution(tasks: list[Task]) -> None:
     assert distribution == EXPECTED_DISTRIBUTION
 
 
+def test_expected_alternatives_adjudicated_tasks(tasks: list[Task]) -> None:
+    with_alternatives = {t.task_id for t in tasks if t.expected_alternatives}
+    assert with_alternatives == {"easton_amendment_02", "vendor_autorenew_01"}
+    search_tool_names = get_search_tool_names()
+    for task in tasks:
+        for alt in task.expected_alternatives:
+            assert alt.tool in search_tool_names, task.task_id
+            assert alt.args, task.task_id
+
+
 def test_shared_system_prompt(tasks: list[Task]) -> None:
     prompts = set()
     for task in tasks:

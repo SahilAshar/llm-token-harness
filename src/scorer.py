@@ -2,9 +2,12 @@
 
 All-or-nothing and batch-aware: every tool call in the batch is
 evaluated, and the score is 1 if ANY call matches the expected
-tool name AND all required args, 0 otherwise. The full list of
-call names is recorded so parallel-call behavior can be analyzed
-downstream.
+tool name AND all required args, 0 otherwise. Tasks may carry
+``expected_alternatives`` — adjudicated equally-correct strategies;
+a full match against the primary expectation OR any alternative
+scores 1, with no partial credit across alternatives. The full
+list of call names is recorded so parallel-call behavior can be
+analyzed downstream.
 """
 
 from __future__ import annotations
@@ -14,7 +17,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from src.adapters.base import ToolCall
-from src.tasks import ArgMatchType, ExpectedArg, Task
+from src.tasks import ArgMatchType, ExpectedArg, ExpectedCall, Task
 
 
 class TaskResult(BaseModel, frozen=True):
@@ -69,10 +72,12 @@ def _match_arg(expected: ExpectedArg, actual_args: dict[str, Any]) -> bool:
     return False
 
 
-def _split_args(task: Task, tc: ToolCall) -> tuple[list[str], list[str]]:
+def _split_args(
+    expected_args: list[ExpectedArg], tc: ToolCall
+) -> tuple[list[str], list[str]]:
     matched: list[str] = []
     failed: list[str] = []
-    for ea in task.expected_args:
+    for ea in expected_args:
         if _match_arg(ea, tc.arguments):
             matched.append(ea.name)
         else:
@@ -83,11 +88,13 @@ def _split_args(task: Task, tc: ToolCall) -> tuple[list[str], list[str]]:
 def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
     """Score a batch of tool calls against the task's expectation.
 
-    Any fully matching call in the batch (tool name + all expected
-    args) scores 1. ``actual_tool`` is the call used for arg
+    Any call in the batch that fully matches the primary expectation
+    or any entry in ``expected_alternatives`` (tool name + all
+    expected args) scores 1. ``actual_tool`` is the call used for arg
     reporting: the fully matching call if one exists, otherwise the
-    first call whose name matches the expected tool, otherwise the
-    first call in the batch.
+    first call whose name matches the primary expected tool, otherwise
+    the first call in the batch. On failure, arg reporting is always
+    against the primary expectation.
     """
     actual_tools = [tc.name for tc in tool_calls]
 
@@ -103,24 +110,31 @@ def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
             failed_args=[ea.name for ea in task.expected_args],
         )
 
-    name_matches = [tc for tc in tool_calls if tc.name == task.expected_tool]
-    for tc in name_matches:
-        matched, failed = _split_args(task, tc)
-        if not failed:
-            return TaskResult(
-                task_id=task.task_id,
-                score=1,
-                expected_tool=task.expected_tool,
-                actual_tool=tc.name,
-                actual_tools=actual_tools,
-                actual_args=tc.arguments,
-                matched_args=matched,
-                failed_args=failed,
-            )
+    specs = [
+        ExpectedCall(tool=task.expected_tool, args=task.expected_args),
+        *task.expected_alternatives,
+    ]
+    for spec in specs:
+        for tc in tool_calls:
+            if tc.name != spec.tool:
+                continue
+            matched, failed = _split_args(spec.args, tc)
+            if not failed:
+                return TaskResult(
+                    task_id=task.task_id,
+                    score=1,
+                    expected_tool=task.expected_tool,
+                    actual_tool=tc.name,
+                    actual_tools=actual_tools,
+                    actual_args=tc.arguments,
+                    matched_args=matched,
+                    failed_args=failed,
+                )
 
+    name_matches = [tc for tc in tool_calls if tc.name == task.expected_tool]
     if name_matches:
         reporting = name_matches[0]
-        matched, failed = _split_args(task, reporting)
+        matched, failed = _split_args(task.expected_args, reporting)
     else:
         reporting = tool_calls[0]
         matched = []

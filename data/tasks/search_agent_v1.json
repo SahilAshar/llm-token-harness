@@ -209,6 +209,26 @@
           }
         }
       },
+      "expected_alternatives": [
+        {
+          "tool": "search",
+          "args": {
+            "query": {
+              "type": "keywords",
+              "value": [
+                "amendment"
+              ]
+            },
+            "filters": {
+              "type": "exact",
+              "value": {
+                "type": "lease",
+                "counterparty": "Pinehurst Realty Group"
+              }
+            }
+          }
+        }
+      ],
       "scoring_weights": {}
     },
     {
@@ -529,6 +549,25 @@
           }
         }
       },
+      "expected_alternatives": [
+        {
+          "tool": "search",
+          "args": {
+            "query": {
+              "type": "keywords",
+              "value": [
+                "auto-renew"
+              ]
+            },
+            "filters": {
+              "type": "exact",
+              "value": {
+                "type": "vendor_agreement"
+              }
+            }
+          }
+        }
+      ],
       "scoring_weights": {}
     }
   ]
