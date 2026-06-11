@@ -26,6 +26,11 @@ class ExpectedArg(BaseModel, frozen=True):
     value: Any
 
 
+class ExpectedCall(BaseModel, frozen=True):
+    tool: str
+    args: list[ExpectedArg]
+
+
 class Task(BaseModel, frozen=True):
     task_id: str
     scenario_id: str
@@ -34,6 +39,8 @@ class Task(BaseModel, frozen=True):
     messages: list[dict[str, Any]]
     expected_tool: str
     expected_args: list[ExpectedArg]
+    # Adjudicated equally-correct strategies; any full match scores 1.
+    expected_alternatives: list[ExpectedCall] = []
     scoring_weights: dict[str, Any] = {}
 
 
@@ -46,6 +53,13 @@ def _parse_expected_args(raw: dict[str, Any]) -> list[ExpectedArg]:
         )
         for name, spec in raw.items()
     ]
+
+
+def _parse_expected_call(raw: dict[str, Any]) -> ExpectedCall:
+    return ExpectedCall(
+        tool=raw["tool"],
+        args=_parse_expected_args(raw.get("args", {})),
+    )
 
 
 def load_tasks(path: str | Path) -> list[Task]:
@@ -61,6 +75,10 @@ def load_tasks(path: str | Path) -> list[Task]:
             messages=raw["messages"],
             expected_tool=raw["expected"]["tool"],
             expected_args=_parse_expected_args(raw["expected"].get("args", {})),
+            expected_alternatives=[
+                _parse_expected_call(alt)
+                for alt in raw.get("expected_alternatives", [])
+            ],
             scoring_weights=raw.get("scoring_weights", {}),
         )
         for raw in data["tasks"]
