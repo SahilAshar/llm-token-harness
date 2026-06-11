@@ -40,4 +40,12 @@ PRICING: dict[str, ModelPricing] = {
 def get_pricing(model: str, provider: Provider | str) -> ModelPricing:
     if Provider(provider) == Provider.OLLAMA:
         return LOCAL_PRICING
-    return PRICING.get(model, LOCAL_PRICING)
+    if model in PRICING:
+        return PRICING[model]
+    # API responses often report versioned model names (e.g.
+    # gpt-4o-mini-2024-07-18); fall back to the longest matching prefix.
+    prefixes = [k for k in PRICING if model.startswith(k)]
+    if prefixes:
+        return PRICING[max(prefixes, key=len)]
+    # Never silently price an unknown API model at $0 — that corrupts CPC.
+    raise KeyError(f"No pricing entry for model {model!r}; add it to PRICING.")
