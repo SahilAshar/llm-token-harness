@@ -10,8 +10,10 @@ list of call names is recorded so parallel-call behavior can be
 analyzed downstream.
 
 Parallel tasks (``expected_parallel``) invert the quantifier: EVERY
-spec must be matched by some call in the batch (any-call-per-spec,
-all-specs-required). Per-spec match results are recorded in
+spec must be matched by its own DISTINCT call in the batch (injective
+matching, all-specs-required) — one combined call whose args happen to
+satisfy two specs is not parallel invocation and does not score.
+Per-spec match results are recorded in
 ``parallel_matched``/``parallel_expected``/``parallel_failed_specs``
 so partial parallel behavior ("issued 1 of 2 expected calls") falls
 out of the raw results even though the score stays all-or-nothing.
@@ -100,21 +102,40 @@ def _split_args(
 def _score_parallel(
     task: Task, specs: list[ExpectedCall], tool_calls: list[ToolCall]
 ) -> TaskResult:
-    matched_count = 0
-    failed_specs: list[str] = []
-    for i, spec in enumerate(specs):
-        satisfied = any(
-            tc.name == spec.tool and not _split_args(spec.args, tc)[1]
-            for tc in tool_calls
-        )
-        if satisfied:
-            matched_count += 1
-        else:
-            failed_specs.append(f"{i}:{spec.tool}")
+    # One call's args can satisfy several specs at once (e.g. a single
+    # combined search containing every spec's keywords), but a model
+    # that issued fewer calls than specs did not parallelize. Each call
+    # may therefore satisfy at most one spec: maximum bipartite
+    # matching of specs to distinct calls, via augmenting paths.
+    compatible = [
+        [
+            j
+            for j, tc in enumerate(tool_calls)
+            if tc.name == spec.tool and not _split_args(spec.args, tc)[1]
+        ]
+        for spec in specs
+    ]
+    call_owner: dict[int, int] = {}
+
+    def _assign(spec_idx: int, visited: set[int]) -> bool:
+        for call_idx in compatible[spec_idx]:
+            if call_idx in visited:
+                continue
+            visited.add(call_idx)
+            if call_idx not in call_owner or _assign(call_owner[call_idx], visited):
+                call_owner[call_idx] = spec_idx
+                return True
+        return False
+
+    failed_specs = [
+        f"{i}:{spec.tool}" for i, spec in enumerate(specs) if not _assign(i, set())
+    ]
+    matched_count = len(specs) - len(failed_specs)
     return TaskResult(
         task_id=task.task_id,
         score=1 if not failed_specs else 0,
         expected_tool=" + ".join(spec.tool for spec in specs),
+        # Display only — parallel analysis reads actual_tools/parallel_*.
         actual_tool=tool_calls[0].name if tool_calls else "",
         actual_tools=[tc.name for tc in tool_calls],
         actual_args=None,
@@ -137,8 +158,9 @@ def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
     expected tool, otherwise the first call in the batch. On failure,
     arg reporting is always against the primary expectation.
 
-    Parallel tasks (``expected_parallel`` set): scores 1 only if EVERY
-    spec is fully matched by at least one call in the batch. Per-spec
+    Parallel tasks (``expected_parallel`` set): scores 1 only if every
+    spec is fully matched by its own distinct call in the batch (a
+    single call never satisfies more than one spec). Per-spec
     results land in the ``parallel_*`` fields; ``expected_tool`` is
     the joined spec tool names and the per-arg report fields stay
     empty.

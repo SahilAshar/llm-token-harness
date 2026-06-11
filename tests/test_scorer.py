@@ -585,6 +585,8 @@ def _make_parallel_task(specs: list[ExpectedCall]) -> Task:
         step=1,
         description="Parallel test task",
         messages=[{"role": "user", "content": "test"}],
+        expected_tool="",
+        expected_args=[],
         expected_parallel=specs,
     )
 
@@ -696,6 +698,34 @@ class TestExpectedParallel:
         assert result.expected_tool == "search + get_document"
         bad = [self._HALVERSON, self._APEX]
         assert score_task(task, bad).score == 0
+
+    def test_one_call_cannot_satisfy_two_specs(self) -> None:
+        # A single combined search containing both specs' keywords is
+        # NOT parallel invocation — matching is injective.
+        task = _make_parallel_task(self._SPECS)
+        combined = ToolCall(
+            name="search", arguments={"query": "halverson apex indemnification"}
+        )
+        result = score_task(task, [combined])
+        assert result.score == 0
+        assert result.parallel_matched == 1
+        assert result.parallel_failed_specs == ["1:search"]
+
+    def test_matching_reroutes_around_greedy_collision(self) -> None:
+        # Spec 0 (halverson) matches both calls and is assigned first;
+        # spec 1 (apex) matches ONLY the combined call. The matcher
+        # must reroute spec 0 onto the halverson-only call so spec 1
+        # can take the combined one — first-fit greedy would score 0.
+        task = _make_parallel_task(self._SPECS)
+        combined = ToolCall(
+            name="search", arguments={"query": "halverson apex indemnification"}
+        )
+        halverson_only = ToolCall(
+            name="search", arguments={"query": "halverson contract terms"}
+        )
+        result = score_task(task, [combined, halverson_only])
+        assert result.score == 1
+        assert result.parallel_matched == 2
 
     def test_single_call_tasks_have_no_parallel_fields(self) -> None:
         task = _make_task(tool="search")
