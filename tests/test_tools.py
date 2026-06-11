@@ -11,8 +11,8 @@ from src.tools import (
 
 def test_all_tools_count() -> None:
     assert len(SEARCH_TOOLS) == 4
-    assert len(DISTRACTOR_TOOLS) == 3
-    assert len(ALL_TOOLS) == 7
+    assert len(DISTRACTOR_TOOLS) == 5
+    assert len(ALL_TOOLS) == 9
 
 
 def test_all_tools_is_search_plus_distractors() -> None:
@@ -33,6 +33,8 @@ def test_get_tool_names() -> None:
         "web_search",
         "tag_document",
         "create_alert",
+        "summarize_document",
+        "search_history",
     ]
     assert get_tool_names() == expected
 
@@ -97,3 +99,34 @@ def test_create_alert_tool_params() -> None:
     assert props["query"]["type"] == "string"
     assert props["frequency"]["enum"] == ["daily", "weekly"]
     assert fn["parameters"]["required"] == ["query"]
+
+
+def test_summarize_document_tool_params() -> None:
+    fn = DISTRACTOR_TOOLS[3]["function"]
+    assert fn["name"] == "summarize_document"
+    props = fn["parameters"]["properties"]
+    assert props["doc_id"]["type"] == "string"
+    assert props["focus"]["type"] == "string"
+    assert fn["parameters"]["required"] == ["doc_id"]
+
+
+def test_search_history_tool_params() -> None:
+    fn = DISTRACTOR_TOOLS[4]["function"]
+    assert fn["name"] == "search_history"
+    props = fn["parameters"]["properties"]
+    assert props["query"]["type"] == "string"
+    assert props["filters"]["type"] == "object"
+    assert fn["parameters"]["required"] == []
+
+
+def test_near_miss_distractors_mirror_real_tool_params() -> None:
+    """The near-misses must stay parameter-compatible with the real
+    tools they shadow, or models could discriminate on schema shape
+    instead of function."""
+    by_name = {t["function"]["name"]: t["function"] for t in ALL_TOOLS}
+    real_search = set(by_name["search"]["parameters"]["properties"])
+    history = set(by_name["search_history"]["parameters"]["properties"])
+    assert history == real_search - {"top_k"}
+    get_doc = set(by_name["get_document"]["parameters"]["properties"])
+    summarize = set(by_name["summarize_document"]["parameters"]["properties"])
+    assert get_doc < summarize
