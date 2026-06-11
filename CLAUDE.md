@@ -12,6 +12,8 @@ A search agent evaluation harness that tests how well different LLMs pick the ri
 
 Single-turn eval: each task is one prompt → one expected tool call. Multi-step chains share a `scenario_id` and build real conversation history (not text summaries). The corpus is simulated — tool responses are hardcoded JSON. We're measuring the MODEL's search reasoning, isolated from retrieval infrastructure.
 
+Current dataset: `data/tasks/search_agent_v1.json` — 15 tasks over a simulated contract repository, including 2 chains of 3 steps. The full pipeline (runner, CPC computation, CLI) is shipped; run it via `make eval`.
+
 ### Key modules
 
 | Module | Purpose |
@@ -19,9 +21,11 @@ Single-turn eval: each task is one prompt → one expected tool call. Multi-step
 | `src/adapters/` | Provider adapters (OpenAI, Anthropic, Ollama) with unified `LLMAdapter` ABC |
 | `src/adapters/base.py` | `Provider` enum, `ToolCall`, `LLMResponse` (Pydantic models) |
 | `src/tools.py` | 4 search tool schemas + 3 distractor tool schemas in OpenAI function-calling format |
-| `src/tasks.py` | `Task`, `ExpectedArg` models + JSON loader |
-| `src/scorer.py` | All-or-nothing scoring: tool name + all args must match |
+| `src/tasks.py` | `Task`, `ExpectedArg`, `ExpectedCall` models + JSON loader |
+| `src/scorer.py` | All-or-nothing scoring: tool name + all args must match (primary or alternative) |
 | `src/pricing.py` | Per-model token pricing, $0 for local/Ollama |
+| `src/eval_runner.py` | Executes tasks against an adapter, computes CPC, writes results |
+| `src/cli.py` | CLI entry point (`make eval`): runs an eval and prints a CPC summary |
 | `data/tasks/` | Task JSON files |
 
 ### Legacy V1 files (excluded from lint)
@@ -46,6 +50,7 @@ These are from the original math/sentiment harness and are excluded in `pyprojec
 - **All-or-nothing:** score is 1 if tool name matches AND all required args match, 0 otherwise
 - **Batch-aware:** every tool call in the model's batch is evaluated; ANY fully matching call scores 1. `TaskResult.actual_tools` records all call names in order, so parallel-call propensity and decompose invocation rate fall out of the raw results
 - **Two arg match types:** `exact` (doc_id, top_k, filters — case-insensitive, type-coerced, dict key-order and list order insensitive) and `keywords` (query — all keywords must appear in model's value)
+- **Adjudicated alternatives:** tasks may carry an optional `expected_alternatives` list of equally-correct strategies; a full match against the primary expected spec OR any alternative scores 1. No partial credit across alternatives; failure reporting stays anchored to the primary spec
 - `tool_choice: "auto"` — models must decide WHETHER to use tools
 
 ## Code conventions
@@ -102,7 +107,9 @@ Key decisions and their rationale (don't relitigate — read first):
 7. **tool_choice: "auto"** — models must decide WHETHER to use tools.
 8. **Quality → Latency → Dollar cost** — priority ordering for metrics.
 9. **Gemma 4 thinking not disabled** — reasoning token cost is real data for CPC.
+10. **`expected_alternatives` for adjudicated ties** — when dataset red-teaming shows two retrieval strategies are equally sound, the task lists both rather than penalizing one. Alternatives are added only after adjudication, never to paper over a vague task.
 
 ## What's next
 
+- Dataset hardening (current single-turn set is saturated): longer chains (4-5 steps with state dependency), constraint-dense filters, semantic near-miss distractor tools, parallel invocation scoring
 - Visualization (quality vs cost scatter plot)
