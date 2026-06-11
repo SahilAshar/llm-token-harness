@@ -9,6 +9,63 @@ import anthropic
 from src.adapters.base import LLMAdapter, LLMResponse, Provider, ToolCall
 
 
+def convert_messages(
+    messages: list[dict[str, Any]],
+) -> tuple[str, list[dict[str, Any]]]:
+    """Convert canonical task messages to Anthropic format.
+
+    Returns ``(system_text, chat_messages)``. Canonical assistant tool
+    calls become ``tool_use`` content blocks; ``role: "tool"`` results
+    become ``tool_result`` blocks inside a user message (Anthropic has
+    no tool role). Synthetic IDs pair each result with its call.
+    """
+    system_text = ""
+    converted: list[dict[str, Any]] = []
+    pending_ids: list[str] = []
+    counter = 0
+
+    for m in messages:
+        role = m["role"]
+        if role == "system":
+            content = m["content"]
+            system_text = content if isinstance(content, str) else str(content)
+        elif role == "assistant" and m.get("tool_calls"):
+            blocks: list[dict[str, Any]] = []
+            if m.get("content"):
+                blocks.append({"type": "text", "text": m["content"]})
+            for tc in m["tool_calls"]:
+                tool_id = f"toolu_{counter}"
+                counter += 1
+                pending_ids.append(tool_id)
+                blocks.append(
+                    {
+                        "type": "tool_use",
+                        "id": tool_id,
+                        "name": tc["name"],
+                        "input": tc["arguments"],
+                    }
+                )
+            converted.append({"role": "assistant", "content": blocks})
+        elif role == "tool":
+            tool_id = pending_ids.pop(0) if pending_ids else f"toolu_{counter}"
+            converted.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_id,
+                            "content": m.get("content") or "",
+                        }
+                    ],
+                }
+            )
+        else:
+            converted.append({"role": role, "content": m["content"]})
+
+    return system_text, converted
+
+
 class AnthropicAdapter(LLMAdapter):
     provider = Provider.ANTHROPIC
 
@@ -25,14 +82,7 @@ class AnthropicAdapter(LLMAdapter):
         tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
-        system_text = ""
-        chat_messages = []
-        for m in messages:
-            if m["role"] == "system":
-                content = m["content"]
-                system_text = content if isinstance(content, str) else str(content)
-            else:
-                chat_messages.append({"role": m["role"], "content": m["content"]})
+        system_text, chat_messages = convert_messages(messages)
 
         # claude-fable-5 returns HTTP 400 for `temperature` and for an
         # explicit `thinking: {type: "disabled"}` param. So: never send a

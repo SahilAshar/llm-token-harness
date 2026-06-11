@@ -9,6 +9,58 @@ from openai import OpenAI
 from src.adapters.base import LLMAdapter, LLMResponse, Provider, ToolCall
 
 
+def convert_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert canonical task messages to OpenAI chat format.
+
+    Canonical assistant tool calls are ``[{name, arguments}]`` with no
+    call IDs, and tool results are ``{role: "tool", content}``. OpenAI
+    requires a ``tool_call_id`` linking each result to its call, a JSON
+    string for arguments, and non-null content on every message.
+    """
+    converted: list[dict[str, Any]] = []
+    pending_ids: list[str] = []
+    counter = 0
+
+    for m in messages:
+        role = m["role"]
+        if role == "assistant" and m.get("tool_calls"):
+            calls = []
+            for tc in m["tool_calls"]:
+                call_id = f"call_{counter}"
+                counter += 1
+                pending_ids.append(call_id)
+                calls.append(
+                    {
+                        "id": call_id,
+                        "type": "function",
+                        "function": {
+                            "name": tc["name"],
+                            "arguments": json.dumps(tc["arguments"]),
+                        },
+                    }
+                )
+            converted.append(
+                {
+                    "role": "assistant",
+                    "content": m.get("content") or "",
+                    "tool_calls": calls,
+                }
+            )
+        elif role == "tool":
+            call_id = pending_ids.pop(0) if pending_ids else f"call_{counter}"
+            converted.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": call_id,
+                    "content": m.get("content") or "",
+                }
+            )
+        else:
+            converted.append({"role": role, "content": m.get("content") or ""})
+
+    return converted
+
+
 class OpenAIAdapter(LLMAdapter):
     provider = Provider.OPENAI
 
@@ -28,7 +80,7 @@ class OpenAIAdapter(LLMAdapter):
 
         call_kwargs: dict[str, Any] = dict(
             model=model,
-            messages=[{"role": m["role"], "content": m["content"]} for m in messages],
+            messages=convert_messages(messages),
             max_tokens=max_output_tokens,
             temperature=temperature,
         )

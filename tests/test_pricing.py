@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from src.adapters.base import Provider
 from src.pricing import LOCAL_PRICING, PRICING, get_pricing
 
@@ -46,5 +48,13 @@ class TestGetPricing:
     def test_ollama_is_free(self) -> None:
         assert get_pricing("gemma4:12b", Provider.OLLAMA) == LOCAL_PRICING
 
-    def test_unknown_model_falls_back_to_free(self) -> None:
-        assert get_pricing("not-a-model", Provider.OPENAI) == LOCAL_PRICING
+    def test_versioned_name_matches_longest_prefix(self) -> None:
+        # OpenAI responses report versioned names; gpt-4o-mini-... must
+        # match gpt-4o-mini, not the shorter gpt-4o prefix.
+        pricing = get_pricing("gpt-4o-mini-2024-07-18", Provider.OPENAI)
+        assert pricing is PRICING["gpt-4o-mini"]
+
+    def test_unknown_api_model_raises(self) -> None:
+        # Silent $0 pricing for an unknown API model corrupts CPC.
+        with pytest.raises(KeyError):
+            get_pricing("not-a-model", Provider.OPENAI)

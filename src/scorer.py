@@ -23,6 +23,8 @@ class TaskResult(BaseModel, frozen=True):
     expected_tool: str
     actual_tool: str
     actual_tools: list[str]
+    # Arguments of the reporting call, recorded for failure analysis.
+    actual_args: dict[str, Any] | None
     matched_args: list[str]
     failed_args: list[str]
 
@@ -96,6 +98,7 @@ def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
             expected_tool=task.expected_tool,
             actual_tool="",
             actual_tools=actual_tools,
+            actual_args=None,
             matched_args=[],
             failed_args=[ea.name for ea in task.expected_args],
         )
@@ -110,6 +113,7 @@ def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
                 expected_tool=task.expected_tool,
                 actual_tool=tc.name,
                 actual_tools=actual_tools,
+                actual_args=tc.arguments,
                 matched_args=matched,
                 failed_args=failed,
             )
@@ -128,6 +132,7 @@ def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
         expected_tool=task.expected_tool,
         actual_tool=reporting.name,
         actual_tools=actual_tools,
+        actual_args=reporting.arguments,
         matched_args=matched,
         failed_args=failed,
     )
