@@ -21,6 +21,10 @@ PRICING: dict[str, ModelPricing] = {
     "gpt-4o": ModelPricing(input_per_mtok=2.50, output_per_mtok=10.00),
     "gpt-4o-mini": ModelPricing(input_per_mtok=0.15, output_per_mtok=0.60),
     "gpt-5": ModelPricing(input_per_mtok=1.25, output_per_mtok=10.00),
+    "gpt-5.5": ModelPricing(input_per_mtok=5.00, output_per_mtok=30.00),
+    "gpt-5.5-pro": ModelPricing(input_per_mtok=30.00, output_per_mtok=180.00),
+    "gpt-5.4-mini": ModelPricing(input_per_mtok=0.75, output_per_mtok=4.50),
+    "gpt-5.4-nano": ModelPricing(input_per_mtok=0.20, output_per_mtok=1.25),
     "claude-sonnet-4-6": ModelPricing(input_per_mtok=3.00, output_per_mtok=15.00),
     # Haiku 4.5 is $1.00/$5.00 per the official pricing page
     # (platform.claude.com/docs/en/about-claude/pricing); $0.80/$4.00 was
@@ -33,6 +37,7 @@ PRICING: dict[str, ModelPricing] = {
     # Correct Opus pricing matters for cost attribution: claude-fable-5
     # silently reroutes a small share of requests to claude-opus-4-8.
     "claude-opus-4-8": ModelPricing(input_per_mtok=5.00, output_per_mtok=25.00),
+    "claude-opus-4-6": ModelPricing(input_per_mtok=5.00, output_per_mtok=25.00),
     "claude-fable-5": ModelPricing(input_per_mtok=10.00, output_per_mtok=50.00),
 }
 

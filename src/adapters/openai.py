@@ -72,18 +72,25 @@ class OpenAIAdapter(LLMAdapter):
         model: str,
         messages: list[dict[str, Any]],
         max_output_tokens: int,
-        temperature: float = 1.0,
+        temperature: float | None = None,
         tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> LLMResponse:
-        reasoning_effort = kwargs.get("reasoning_effort")
+        # The CLI passes a provider-neutral `effort`; OpenAI calls it
+        # reasoning_effort (none/low/medium/high/xhigh on gpt-5.x).
+        reasoning_effort = kwargs.get("reasoning_effort") or kwargs.get("effort")
 
+        # max_completion_tokens is the universal replacement for
+        # max_tokens, which gpt-5.x reasoning models reject. Reasoning
+        # models also restrict temperature, so only send it when the
+        # caller explicitly passes one (mirrors the Anthropic guard).
         call_kwargs: dict[str, Any] = dict(
             model=model,
             messages=convert_messages(messages),
-            max_tokens=max_output_tokens,
-            temperature=temperature,
+            max_completion_tokens=max_output_tokens,
         )
+        if temperature is not None:
+            call_kwargs["temperature"] = temperature
         if reasoning_effort:
             call_kwargs["reasoning_effort"] = reasoning_effort
         if tools:
