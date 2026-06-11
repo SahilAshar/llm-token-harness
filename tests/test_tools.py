@@ -130,3 +130,7 @@ def test_near_miss_distractors_mirror_real_tool_params() -> None:
     get_doc = set(by_name["get_document"]["parameters"]["properties"])
     summarize = set(by_name["summarize_document"]["parameters"]["properties"])
     assert get_doc < summarize
+    # required arrays diverge deliberately: search needs a query, while
+    # search_history supports browsing recent activity with no args.
+    assert by_name["search"]["parameters"]["required"] == ["query"]
+    assert by_name["search_history"]["parameters"]["required"] == []
