@@ -39,6 +39,21 @@ SIMPLE_MESSAGES: list[dict[str, Any]] = [
     {"role": "user", "content": "Find the Corvid NDA."},
 ]
 
+PARALLEL_MESSAGES: list[dict[str, Any]] = [
+    {"role": "system", "content": "You are a search agent."},
+    {"role": "user", "content": "Compare indemnification across our MSAs."},
+    {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {"name": "search", "arguments": {"query": "halverson"}},
+            {"name": "search", "arguments": {"query": "apex"}},
+        ],
+    },
+    {"role": "tool", "content": '{"results": ["h"]}'},
+    {"role": "tool", "content": '{"results": ["a"]}'},
+]
+
 
 class TestOpenAIConversion:
     def test_simple_messages_pass_through(self) -> None:
@@ -64,6 +79,13 @@ class TestOpenAIConversion:
         assert out[3]["role"] == "tool"
         assert out[3]["tool_call_id"] == "call_0"
         assert out[5]["tool_call_id"] == "call_1"
+
+    def test_parallel_batch_results_pair_fifo(self) -> None:
+        out = convert_openai(PARALLEL_MESSAGES)
+        assistant = out[2]
+        assert [c["id"] for c in assistant["tool_calls"]] == ["call_0", "call_1"]
+        assert out[3]["tool_call_id"] == "call_0"
+        assert out[4]["tool_call_id"] == "call_1"
 
 
 class TestAnthropicConversion:
@@ -98,6 +120,18 @@ class TestAnthropicConversion:
     def test_no_tool_role_remains(self) -> None:
         _, chat = convert_anthropic(CHAIN_MESSAGES)
         assert all(m["role"] in ("user", "assistant") for m in chat)
+
+    def test_parallel_batch_results_merge_into_one_user_message(self) -> None:
+        _, chat = convert_anthropic(PARALLEL_MESSAGES)
+        # user, assistant(2 tool_use), ONE user message with both results
+        assert [m["role"] for m in chat] == ["user", "assistant", "user"]
+        assistant = chat[1]
+        assert [b["id"] for b in assistant["content"]] == ["toolu_0", "toolu_1"]
+        results = chat[2]["content"]
+        assert [b["type"] for b in results] == ["tool_result", "tool_result"]
+        assert [b["tool_use_id"] for b in results] == ["toolu_0", "toolu_1"]
+        assert results[0]["content"] == '{"results": ["h"]}'
+        assert results[1]["content"] == '{"results": ["a"]}'
 
 
 class TestOllamaConversion:

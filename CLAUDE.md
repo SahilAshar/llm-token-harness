@@ -12,7 +12,7 @@ A search agent evaluation harness that tests how well different LLMs pick the ri
 
 Single-turn eval: each task is one prompt → one expected tool call. Multi-step chains share a `scenario_id` and build real conversation history (not text summaries). The corpus is simulated — tool responses are hardcoded JSON. We're measuring the MODEL's search reasoning, isolated from retrieval infrastructure.
 
-Current dataset: `data/tasks/search_agent_v1.json` — 15 tasks over a simulated contract repository, including 2 chains of 3 steps. The full pipeline (runner, CPC computation, CLI) is shipped; run it via `make eval`.
+Current dataset: `data/tasks/search_agent_v1.json` — 23 tasks over a simulated contract repository: 3 chains (5, 4, and 4 steps) with non-adjacent state dependencies, 1 parallel-invocation task, 3 constraint-dense filter tasks, and a 6-task easy baseline floor. The full pipeline (runner, CPC computation, CLI) is shipped; run it via `make eval`.
 
 ### Key modules
 
@@ -20,9 +20,9 @@ Current dataset: `data/tasks/search_agent_v1.json` — 15 tasks over a simulated
 |---|---|
 | `src/adapters/` | Provider adapters (OpenAI, Anthropic, Ollama) with unified `LLMAdapter` ABC |
 | `src/adapters/base.py` | `Provider` enum, `ToolCall`, `LLMResponse` (Pydantic models) |
-| `src/tools.py` | 4 search tool schemas + 3 distractor tool schemas in OpenAI function-calling format |
-| `src/tasks.py` | `Task`, `ExpectedArg`, `ExpectedCall` models + JSON loader |
-| `src/scorer.py` | All-or-nothing scoring: tool name + all args must match (primary or alternative) |
+| `src/tools.py` | 4 search tool schemas + 5 distractor tool schemas in OpenAI function-calling format |
+| `src/tasks.py` | `Task`, `ExpectedArg`, `ExpectedCall` models + JSON loader (validates single-call vs parallel mode) |
+| `src/scorer.py` | All-or-nothing scoring: tool name + all args must match (primary, alternative, or all parallel specs) |
 | `src/pricing.py` | Per-model token pricing, $0 for local/Ollama |
 | `src/eval_runner.py` | Executes tasks against an adapter, computes CPC, writes results |
 | `src/cli.py` | CLI entry point (`make eval`): runs an eval and prints a CPC summary |
@@ -39,9 +39,11 @@ These are from the original math/sentiment harness and are excluded in `pyprojec
 - `list_documents(filters?)` — metadata-only exploration
 - `query_decompose(query)` — break complex queries into sub-queries
 
-### The 3 distractor tools
+### The 5 distractor tools
 
-- `web_search(query)`, `tag_document(doc_id, tags)`, `create_alert(query, frequency?)` — plausible schemas offered to models alongside the real tools (`ALL_TOOLS = SEARCH_TOOLS + DISTRACTOR_TOOLS`) but never the correct answer for any task
+- 3 categorically wrong: `web_search(query)` (wrong corpus), `tag_document(doc_id, tags)` (wrong operation class), `create_alert(query, frequency?)` (wrong temporal mode)
+- 2 semantic near-misses: `summarize_document(doc_id, focus?)` (shadows `get_document`; returns generated text, not source text) and `search_history(query?, filters?)` (shadows `search`; searches prior interactions, not the corpus)
+- All are plausible schemas offered alongside the real tools (`ALL_TOOLS = SEARCH_TOOLS + DISTRACTOR_TOOLS`) but never the correct answer for any task
 - Why: defends against saturation by testing tool *discrimination*, not just tool use (MCPAgentBench pattern)
 - Distractor-pick rate is tracked from `actual_tools` in raw results as an unscored behavioral metric
 
@@ -51,6 +53,7 @@ These are from the original math/sentiment harness and are excluded in `pyprojec
 - **Batch-aware:** every tool call in the model's batch is evaluated; ANY fully matching call scores 1. `TaskResult.actual_tools` records all call names in order, so parallel-call propensity and decompose invocation rate fall out of the raw results
 - **Two arg match types:** `exact` (doc_id, top_k, filters — case-insensitive, type-coerced, dict key-order and list order insensitive) and `keywords` (query — all keywords must appear in model's value)
 - **Adjudicated alternatives:** tasks may carry an optional `expected_alternatives` list of equally-correct strategies; a full match against the primary expected spec OR any alternative scores 1. No partial credit across alternatives; failure reporting stays anchored to the primary spec
+- **Parallel mode:** a task has exactly one of `expected` (single call, optional alternatives) or `expected_parallel` (2+ specs that must ALL be matched by calls in one batch — any-call-per-spec, all-specs-required). `TaskResult.parallel_matched`/`parallel_expected`/`parallel_failed_specs` record per-spec results; the score stays all-or-nothing
 - `tool_choice: "auto"` — models must decide WHETHER to use tools
 
 ## Code conventions
@@ -103,13 +106,14 @@ Key decisions and their rationale (don't relitigate — read first):
 3. **4 realistic tools** — trimmed from 9, then from 5. Mirrors real search APIs (LangChain, LlamaIndex, Azure AI Search). Cut: summarize, query_expand, entity_extract, passage_retrieve, metadata_filter (absorbed into search filters). `compare` was also removed after dataset red-teaming: comparison is in-context generation work after retrieval, not a retrieval operation, and no real search API exposes it standalone.
 4. **All-or-nothing scoring** — binary 1/0. Partial credit backlogged for V2.
 5. **Keyword-contains for free-text args** — no NLP deps. We control both sides (task authoring + expected args).
-6. **Conversation history for multi-step state** — real message history, not text summaries.
+6. **Conversation history for multi-step state** — real message history, not text summaries. Chain histories always follow the primary expected path; `expected_alternatives` affect scoring only, so a step whose alternative was the "actual" answer still sees primary-path history at the next step.
 7. **tool_choice: "auto"** — models must decide WHETHER to use tools.
 8. **Quality → Latency → Dollar cost** — priority ordering for metrics.
 9. **Gemma 4 thinking not disabled** — reasoning token cost is real data for CPC.
 10. **`expected_alternatives` for adjudicated ties** — when dataset red-teaming shows two retrieval strategies are equally sound, the task lists both rather than penalizing one. Alternatives are added only after adjudication, never to paper over a vague task.
+11. **Four hardening axes (shipped)** — the first benchmark run showed 10/15 tasks passed by everyone; single-turn selection from small tool sets is saturated industry-wide. Hardened along: (1) longer chains with non-adjacent state dependency, (2) constraint-dense filters, (3) semantic near-miss distractors, (4) parallel invocation scoring (`expected_parallel`). Easy tasks are kept as a baseline floor; the hard tasks are where CPC means something.
 
 ## What's next
 
-- Dataset hardening (current single-turn set is saturated): longer chains (4-5 steps with state dependency), constraint-dense filters, semantic near-miss distractor tools, parallel invocation scoring
+- Re-run the full 12-config benchmark on the hardened dataset
 - Visualization (quality vs cost scatter plot)
