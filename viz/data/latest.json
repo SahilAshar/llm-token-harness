@@ -1,0 +1,1368 @@
+{
+  "meta": {
+    "date": "2026-06-12",
+    "dataset": "data/tasks/search_agent_v1.json",
+    "n_tasks": 23,
+    "n_configs": 12,
+    "north_star": "CPC = total run cost / tasks with correct retrieval strategy",
+    "note": "Hardened 23-task run. NOT comparable to June-10 15-task grid.",
+    "distractor_tools": [
+      "create_alert",
+      "search_history",
+      "summarize_document",
+      "tag_document",
+      "web_search"
+    ],
+    "chains": {
+      "halverson_dispute": 5,
+      "easton_amendment": 4,
+      "vendor_autorenew": 4
+    }
+  },
+  "configs": [
+    {
+      "label": "gpt-4o-mini",
+      "model": "gpt-4o-mini",
+      "provider": "openai",
+      "effort": null,
+      "score": 13,
+      "n_tasks": 23,
+      "accuracy": 0.5652,
+      "total_cost_usd": 0.005232,
+      "cpc_usd": 0.000402,
+      "input_tokens": 27700,
+      "output_tokens": 1795,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 1.83
+    },
+    {
+      "label": "gpt-5.4-nano",
+      "model": "gpt-5.4-nano",
+      "provider": "openai",
+      "effort": null,
+      "score": 16,
+      "n_tasks": 23,
+      "accuracy": 0.6957,
+      "total_cost_usd": 0.007621,
+      "cpc_usd": 0.000476,
+      "input_tokens": 30178,
+      "output_tokens": 1268,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 1.25
+    },
+    {
+      "label": "gpt-5.4-mini",
+      "model": "gpt-5.4-mini",
+      "provider": "openai",
+      "effort": null,
+      "score": 17,
+      "n_tasks": 23,
+      "accuracy": 0.7391,
+      "total_cost_usd": 0.027565,
+      "cpc_usd": 0.001621,
+      "input_tokens": 30178,
+      "output_tokens": 1096,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 1.56
+    },
+    {
+      "label": "gpt-5.5",
+      "model": "gpt-5.5",
+      "provider": "openai",
+      "effort": null,
+      "score": 18,
+      "n_tasks": 23,
+      "accuracy": 0.7826,
+      "total_cost_usd": 0.22715,
+      "cpc_usd": 0.012619,
+      "input_tokens": 30178,
+      "output_tokens": 2542,
+      "reasoning_tokens": 822,
+      "mean_latency_s": 4.16
+    },
+    {
+      "label": "claude-haiku-4-5",
+      "model": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "effort": null,
+      "score": 15,
+      "n_tasks": 23,
+      "accuracy": 0.6522,
+      "total_cost_usd": 0.069788,
+      "cpc_usd": 0.004653,
+      "input_tokens": 51898,
+      "output_tokens": 3578,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 3.45
+    },
+    {
+      "label": "claude-sonnet-4-6",
+      "model": "claude-sonnet-4-6",
+      "provider": "anthropic",
+      "effort": null,
+      "score": 17,
+      "n_tasks": 23,
+      "accuracy": 0.7391,
+      "total_cost_usd": 0.212613,
+      "cpc_usd": 0.012507,
+      "input_tokens": 51921,
+      "output_tokens": 3790,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 3.44
+    },
+    {
+      "label": "claude-opus-4-6",
+      "model": "claude-opus-4-6",
+      "provider": "anthropic",
+      "effort": null,
+      "score": 18,
+      "n_tasks": 23,
+      "accuracy": 0.7826,
+      "total_cost_usd": 0.361155,
+      "cpc_usd": 0.020064,
+      "input_tokens": 51921,
+      "output_tokens": 4062,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 4.26
+    },
+    {
+      "label": "claude-opus-4-8",
+      "model": "claude-opus-4-8",
+      "provider": "anthropic",
+      "effort": null,
+      "score": 16,
+      "n_tasks": 23,
+      "accuracy": 0.6957,
+      "total_cost_usd": 0.410465,
+      "cpc_usd": 0.025654,
+      "input_tokens": 60508,
+      "output_tokens": 4317,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 2.99
+    },
+    {
+      "label": "Fable 5 (low)",
+      "model": "claude-fable-5",
+      "provider": "anthropic",
+      "effort": "low",
+      "score": 19,
+      "n_tasks": 23,
+      "accuracy": 0.8261,
+      "total_cost_usd": 0.73438,
+      "cpc_usd": 0.038652,
+      "input_tokens": 60508,
+      "output_tokens": 2586,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 4.56
+    },
+    {
+      "label": "Fable 5 (medium)",
+      "model": "claude-fable-5",
+      "provider": "anthropic",
+      "effort": "medium",
+      "score": 19,
+      "n_tasks": 23,
+      "accuracy": 0.8261,
+      "total_cost_usd": 0.76228,
+      "cpc_usd": 0.04012,
+      "input_tokens": 60508,
+      "output_tokens": 3144,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 4.98
+    },
+    {
+      "label": "Fable 5 (high)",
+      "model": "claude-fable-5",
+      "provider": "anthropic",
+      "effort": "high",
+      "score": 18,
+      "n_tasks": 23,
+      "accuracy": 0.7826,
+      "total_cost_usd": 0.79508,
+      "cpc_usd": 0.044171,
+      "input_tokens": 60508,
+      "output_tokens": 3800,
+      "reasoning_tokens": 0,
+      "mean_latency_s": 5.25
+    },
+    {
+      "label": "gemma4:12b",
+      "model": "gemma4:12b",
+      "provider": "ollama",
+      "effort": null,
+      "score": 9,
+      "n_tasks": 23,
+      "accuracy": 0.3913,
+      "total_cost_usd": 0.0,
+      "cpc_usd": 0.0,
+      "input_tokens": 36166,
+      "output_tokens": 6531,
+      "reasoning_tokens": 2225,
+      "mean_latency_s": 28.5
+    }
+  ],
+  "parallel_task": {
+    "task_id": "halverson_dispute_02",
+    "per_config": [
+      {
+        "label": "gpt-4o-mini",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "search",
+          "search"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "gpt-5.4-nano",
+        "pass": true,
+        "matched": 2,
+        "expected": 2,
+        "calls": [
+          "search",
+          "search",
+          "search",
+          "search"
+        ],
+        "failed_specs": []
+      },
+      {
+        "label": "gpt-5.4-mini",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "list_documents",
+          "list_documents"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "gpt-5.5",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "list_documents",
+          "list_documents",
+          "search",
+          "search"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "claude-haiku-4-5",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "search",
+          "search",
+          "list_documents",
+          "list_documents"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "claude-sonnet-4-6",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "list_documents",
+          "list_documents",
+          "search",
+          "search"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "claude-opus-4-6",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "search",
+          "search",
+          "list_documents",
+          "list_documents"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "claude-opus-4-8",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "list_documents",
+          "list_documents"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "Fable 5 (low)",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "list_documents",
+          "list_documents"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "Fable 5 (medium)",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "list_documents",
+          "list_documents"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "Fable 5 (high)",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [
+          "list_documents",
+          "list_documents"
+        ],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      },
+      {
+        "label": "gemma4:12b",
+        "pass": false,
+        "matched": 0,
+        "expected": 2,
+        "calls": [],
+        "failed_specs": [
+          "0:search",
+          "1:search"
+        ]
+      }
+    ]
+  },
+  "distractor_picks": [
+    {
+      "label": "gpt-4o-mini",
+      "picks": [
+        {
+          "task": "vendor_autorenew_02",
+          "tool": "summarize_document",
+          "count": 3
+        },
+        {
+          "task": "stonebridge_term_01",
+          "tool": "summarize_document",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "claude-sonnet-4-6",
+      "picks": [
+        {
+          "task": "halverson_dispute_03",
+          "tool": "summarize_document",
+          "count": 4
+        },
+        {
+          "task": "halverson_dispute_04",
+          "tool": "summarize_document",
+          "count": 2
+        },
+        {
+          "task": "halverson_dispute_05",
+          "tool": "summarize_document",
+          "count": 1
+        },
+        {
+          "task": "vendor_autorenew_02",
+          "tool": "summarize_document",
+          "count": 3
+        },
+        {
+          "task": "stonebridge_term_01",
+          "tool": "summarize_document",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "gemma4:12b",
+      "picks": [
+        {
+          "task": "stonebridge_term_01",
+          "tool": "summarize_document",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "chains_per_config": [
+    {
+      "label": "gpt-4o-mini",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 0,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_01",
+            "halverson_dispute_02",
+            "halverson_dispute_03",
+            "halverson_dispute_04",
+            "halverson_dispute_05"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "easton_amendment_02"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 2,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_02",
+            "vendor_autorenew_04"
+          ]
+        }
+      }
+    },
+    {
+      "label": "gpt-5.4-nano",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 3,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_04",
+            "halverson_dispute_05"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 4,
+          "total": 4,
+          "failed": []
+        },
+        "vendor_autorenew": {
+          "correct": 2,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_02",
+            "vendor_autorenew_04"
+          ]
+        }
+      }
+    },
+    {
+      "label": "gpt-5.4-mini",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 3,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_02",
+            "halverson_dispute_05"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 4,
+          "total": 4,
+          "failed": []
+        },
+        "vendor_autorenew": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_04"
+          ]
+        }
+      }
+    },
+    {
+      "label": "gpt-5.5",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 3,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_01",
+            "halverson_dispute_02"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "easton_amendment_02"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_02"
+          ]
+        }
+      }
+    },
+    {
+      "label": "claude-haiku-4-5",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 2,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_01",
+            "halverson_dispute_02",
+            "halverson_dispute_05"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "easton_amendment_04"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 2,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_02",
+            "vendor_autorenew_04"
+          ]
+        }
+      }
+    },
+    {
+      "label": "claude-sonnet-4-6",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 2,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_02",
+            "halverson_dispute_03",
+            "halverson_dispute_04"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 4,
+          "total": 4,
+          "failed": []
+        },
+        "vendor_autorenew": {
+          "correct": 2,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_02",
+            "vendor_autorenew_04"
+          ]
+        }
+      }
+    },
+    {
+      "label": "claude-opus-4-6",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 3,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_02",
+            "halverson_dispute_05"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "easton_amendment_02"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 2,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_02",
+            "vendor_autorenew_04"
+          ]
+        }
+      }
+    },
+    {
+      "label": "claude-opus-4-8",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 2,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_01",
+            "halverson_dispute_02",
+            "halverson_dispute_05"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "easton_amendment_02"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_02"
+          ]
+        }
+      }
+    },
+    {
+      "label": "Fable 5 (low)",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 3,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_01",
+            "halverson_dispute_02"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "easton_amendment_02"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 4,
+          "total": 4,
+          "failed": []
+        }
+      }
+    },
+    {
+      "label": "Fable 5 (medium)",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 3,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_01",
+            "halverson_dispute_02"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "easton_amendment_02"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 4,
+          "total": 4,
+          "failed": []
+        }
+      }
+    },
+    {
+      "label": "Fable 5 (high)",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 3,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_01",
+            "halverson_dispute_02"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "easton_amendment_02"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 3,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_02"
+          ]
+        }
+      }
+    },
+    {
+      "label": "gemma4:12b",
+      "chains": {
+        "halverson_dispute": {
+          "correct": 0,
+          "total": 5,
+          "failed": [
+            "halverson_dispute_01",
+            "halverson_dispute_02",
+            "halverson_dispute_03",
+            "halverson_dispute_04",
+            "halverson_dispute_05"
+          ]
+        },
+        "easton_amendment": {
+          "correct": 2,
+          "total": 4,
+          "failed": [
+            "easton_amendment_02",
+            "easton_amendment_04"
+          ]
+        },
+        "vendor_autorenew": {
+          "correct": 0,
+          "total": 4,
+          "failed": [
+            "vendor_autorenew_01",
+            "vendor_autorenew_02",
+            "vendor_autorenew_03",
+            "vendor_autorenew_04"
+          ]
+        }
+      }
+    }
+  ],
+  "task_difficulty": [
+    {
+      "task_id": "halverson_dispute_01",
+      "scenario": "halverson_dispute",
+      "n_pass": 4,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "halverson_dispute_02",
+      "scenario": "halverson_dispute",
+      "n_pass": 1,
+      "n_configs": 12,
+      "is_parallel": true,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "halverson_dispute_03",
+      "scenario": "halverson_dispute",
+      "n_pass": 9,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "halverson_dispute_04",
+      "scenario": "halverson_dispute",
+      "n_pass": 8,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "halverson_dispute_05",
+      "scenario": "halverson_dispute",
+      "n_pass": 5,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": true,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "easton_amendment_01",
+      "scenario": "easton_amendment",
+      "n_pass": 12,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "easton_amendment_02",
+      "scenario": "easton_amendment",
+      "n_pass": 4,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": true,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "easton_amendment_03",
+      "scenario": "easton_amendment",
+      "n_pass": 12,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "easton_amendment_04",
+      "scenario": "easton_amendment",
+      "n_pass": 10,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "vendor_autorenew_01",
+      "scenario": "vendor_autorenew",
+      "n_pass": 11,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": true,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "vendor_autorenew_02",
+      "scenario": "vendor_autorenew",
+      "n_pass": 3,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "vendor_autorenew_03",
+      "scenario": "vendor_autorenew",
+      "n_pass": 11,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "vendor_autorenew_04",
+      "scenario": "vendor_autorenew",
+      "n_pass": 5,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": true
+    },
+    {
+      "task_id": "corvid_fetch_01",
+      "scenario": "corvid_fetch",
+      "n_pass": 12,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": true,
+      "is_chain": false
+    },
+    {
+      "task_id": "stonebridge_term_01",
+      "scenario": "stonebridge_term",
+      "n_pass": 8,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": true,
+      "is_chain": false
+    },
+    {
+      "task_id": "nda_inventory_01",
+      "scenario": "nda_inventory",
+      "n_pass": 12,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": true,
+      "is_chain": false
+    },
+    {
+      "task_id": "q1_2025_inventory_01",
+      "scenario": "q1_2025_inventory",
+      "n_pass": 12,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": true,
+      "is_chain": false
+    },
+    {
+      "task_id": "nonsolicit_search_01",
+      "scenario": "nonsolicit_search",
+      "n_pass": 12,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": true,
+      "is_chain": false
+    },
+    {
+      "task_id": "termination_topk_01",
+      "scenario": "termination_topk",
+      "n_pass": 12,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": true,
+      "is_chain": false
+    },
+    {
+      "task_id": "vendor_renewal_decompose_01",
+      "scenario": "vendor_renewal_decompose",
+      "n_pass": 2,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": false
+    },
+    {
+      "task_id": "vendor_indemnification_2024_01",
+      "scenario": "vendor_indemnification_2024",
+      "n_pass": 11,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": false
+    },
+    {
+      "task_id": "halverson_sow_sla_01",
+      "scenario": "halverson_sow_sla",
+      "n_pass": 8,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": false
+    },
+    {
+      "task_id": "okafor_leases_01",
+      "scenario": "okafor_leases",
+      "n_pass": 11,
+      "n_configs": 12,
+      "is_parallel": false,
+      "is_alt": false,
+      "is_floor": false,
+      "is_chain": false
+    }
+  ],
+  "per_config_task_scores": {
+    "gpt-4o-mini": {
+      "halverson_dispute_01": 0,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 0,
+      "halverson_dispute_04": 0,
+      "halverson_dispute_05": 0,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 0,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 0,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 0,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 1,
+      "okafor_leases_01": 1
+    },
+    "gpt-5.4-nano": {
+      "halverson_dispute_01": 1,
+      "halverson_dispute_02": 1,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 0,
+      "halverson_dispute_05": 0,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 1,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 0,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 1,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 0,
+      "okafor_leases_01": 0
+    },
+    "gpt-5.4-mini": {
+      "halverson_dispute_01": 1,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 1,
+      "halverson_dispute_05": 0,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 1,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 1,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 0,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 1,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 0,
+      "halverson_sow_sla_01": 0,
+      "okafor_leases_01": 1
+    },
+    "gpt-5.5": {
+      "halverson_dispute_01": 0,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 1,
+      "halverson_dispute_05": 1,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 0,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 1,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 1,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 1,
+      "okafor_leases_01": 1
+    },
+    "claude-haiku-4-5": {
+      "halverson_dispute_01": 0,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 1,
+      "halverson_dispute_05": 0,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 1,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 0,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 0,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 1,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 0,
+      "okafor_leases_01": 1
+    },
+    "claude-sonnet-4-6": {
+      "halverson_dispute_01": 1,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 0,
+      "halverson_dispute_04": 0,
+      "halverson_dispute_05": 1,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 1,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 0,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 0,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 1,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 1,
+      "okafor_leases_01": 1
+    },
+    "claude-opus-4-6": {
+      "halverson_dispute_01": 1,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 1,
+      "halverson_dispute_05": 0,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 0,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 0,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 1,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 1,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 1,
+      "okafor_leases_01": 1
+    },
+    "claude-opus-4-8": {
+      "halverson_dispute_01": 0,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 1,
+      "halverson_dispute_05": 0,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 0,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 1,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 0,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 1,
+      "okafor_leases_01": 1
+    },
+    "Fable 5 (low)": {
+      "halverson_dispute_01": 0,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 1,
+      "halverson_dispute_05": 1,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 0,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 1,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 1,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 1,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 1,
+      "okafor_leases_01": 1
+    },
+    "Fable 5 (medium)": {
+      "halverson_dispute_01": 0,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 1,
+      "halverson_dispute_05": 1,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 0,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 1,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 1,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 1,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 1,
+      "okafor_leases_01": 1
+    },
+    "Fable 5 (high)": {
+      "halverson_dispute_01": 0,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 1,
+      "halverson_dispute_04": 1,
+      "halverson_dispute_05": 1,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 0,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 1,
+      "vendor_autorenew_01": 1,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 1,
+      "vendor_autorenew_04": 1,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 1,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 1,
+      "okafor_leases_01": 1
+    },
+    "gemma4:12b": {
+      "halverson_dispute_01": 0,
+      "halverson_dispute_02": 0,
+      "halverson_dispute_03": 0,
+      "halverson_dispute_04": 0,
+      "halverson_dispute_05": 0,
+      "easton_amendment_01": 1,
+      "easton_amendment_02": 0,
+      "easton_amendment_03": 1,
+      "easton_amendment_04": 0,
+      "vendor_autorenew_01": 0,
+      "vendor_autorenew_02": 0,
+      "vendor_autorenew_03": 0,
+      "vendor_autorenew_04": 0,
+      "corvid_fetch_01": 1,
+      "stonebridge_term_01": 0,
+      "nda_inventory_01": 1,
+      "q1_2025_inventory_01": 1,
+      "nonsolicit_search_01": 1,
+      "termination_topk_01": 1,
+      "vendor_renewal_decompose_01": 0,
+      "vendor_indemnification_2024_01": 1,
+      "halverson_sow_sla_01": 0,
+      "okafor_leases_01": 1
+    }
+  },
+  "prior_run_june10": [
+    {
+      "label": "Sonnet 4.6",
+      "score": 14,
+      "n": 15,
+      "cpc": 0.0073
+    },
+    {
+      "label": "Opus 4.6",
+      "score": 13,
+      "n": 15,
+      "cpc": 0.0139
+    },
+    {
+      "label": "GPT-4o-mini",
+      "score": 12,
+      "n": 15,
+      "cpc": 0.00018
+    },
+    {
+      "label": "GPT-5.4 nano",
+      "score": 12,
+      "n": 15,
+      "cpc": 0.00031
+    },
+    {
+      "label": "Gemma 4 12B",
+      "score": 11,
+      "n": 15,
+      "cpc": 0.0
+    },
+    {
+      "label": "Haiku 4.5",
+      "score": 11,
+      "n": 15,
+      "cpc": 0.0032
+    },
+    {
+      "label": "Fable 5 (low=med=high)",
+      "score": 10,
+      "n": 15,
+      "cpc": 0.037
+    },
+    {
+      "label": "GPT-5.5",
+      "score": 10,
+      "n": 15,
+      "cpc": 0.0106
+    },
+    {
+      "label": "GPT-5.4 mini",
+      "score": 10,
+      "n": 15,
+      "cpc": 0.0013
+    },
+    {
+      "label": "Opus 4.8",
+      "score": 10,
+      "n": 15,
+      "cpc": 0.0192
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+name: Deploy visualizer to Pages
+
+# Publishes the benchmark visualizer to GitHub Pages with LIVE data:
+# the deployed page fetches ./data/latest.json at runtime, so refreshing a
+# run only requires overwriting viz/data/latest.json and pushing — no rebuild
+# of the HTML. Builds the fetch-based variant, assembles _site, and deploys.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "viz/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; let an in-progress run finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build fetch-based visualizer
+        run: python viz/build_visualizer.py --pages
+
+      - name: Assemble site
+        run: |
+          rm -rf _site
+          mkdir -p _site/data
+          cp viz/pages-index.html _site/index.html
+          cp viz/data/latest.json _site/data/latest.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -8,13 +8,15 @@ tasks with correct retrieval strategy**.
 
 | File | What it is |
 |---|---|
-| `visualizer.html` | The deliverable: a single self-contained tabbed page (Dashboard / Insights / Hardening Roadmap). Data is inlined, no CDN, opens under `file://`. |
+| `visualizer.html` | The offline deliverable: a single self-contained tabbed page (Dashboard / Insights / Hardening Roadmap). Data is inlined, no CDN, opens under `file://`. |
+| `pages-index.html` | The GitHub Pages variant: identical layout, but fetches `./data/latest.json` at runtime instead of inlining data. Served as `index.html` on Pages. Built by `build_visualizer.py --pages`. |
 | `dashboard.html` | The charts-only standalone version (Dashboard content only). |
-| `data/bench_data_2026-06-12.json` | The committed data snapshot the pages render. |
+| `data/latest.json` | Canonical **latest** snapshot the Pages site fetches. Overwrite + push to refresh the live site (no HTML rebuild). |
+| `data/bench_data_2026-06-12.json` | Dated history snapshot (the 2026-06-12 run). |
 | `insights-2026-06-12.md` | Prose backing the Insights tab. |
 | `hardening-roadmap-2026-06-12.md` | Prose backing the Hardening Roadmap tab. |
 | `export_bench_data.py` | Regenerates the data snapshot from the run files. |
-| `build_visualizer.py` | Rebuilds `visualizer.html` from `dashboard.html` + the two md files. |
+| `build_visualizer.py` | Rebuilds `visualizer.html` (default) or `pages-index.html` (`--pages`) from `dashboard.html` + the two md files. |
 
 ## Viewing
 
@@ -29,6 +31,26 @@ The three tabs:
   per-task difficulty.
 - **Insights** — narrative findings from the run.
 - **Hardening Roadmap** — where the dataset is saturated and what to harden next.
+
+## GitHub Pages (live data)
+
+The repo also publishes a **live-data** version of this page to GitHub Pages via
+`.github/workflows/pages.yml` (modern Actions deploy; no `gh-pages` branch). On a
+push to `main` that touches `viz/**`, the workflow runs
+`python viz/build_visualizer.py --pages`, copies `pages-index.html` →
+`_site/index.html` and `data/latest.json` → `_site/data/latest.json`, and deploys.
+
+Expected URL: <https://sahilashar.github.io/llm-token-harness/>
+
+Unlike `visualizer.html`, the Pages page fetches its chart data at runtime
+(`fetch('./data/latest.json')`) and renders only after that resolves, degrading
+to a visible error banner if the fetch fails. The Insights / Hardening tabs are
+static prose baked into the page (they describe the 2026-06-12 run).
+
+**To refresh the live site:** overwrite `viz/data/latest.json` (e.g. copy a newer
+dated snapshot over it) and push to `main`. The site redeploys with the new data —
+**no HTML rebuild required**, since `data/latest.json` is the single source of
+truth the page fetches.
 
 ## Regenerating
 

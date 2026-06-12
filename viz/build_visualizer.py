@@ -1,9 +1,16 @@
 """Combine dashboard.html + insights + hardening md into one tabbed visualizer.
 
-Output: viz/visualizer.html (single self-contained file).
+Two output modes:
+
+* default (offline) -> viz/visualizer.html: data is INLINED in a data-blob
+  script tag, so the file works over file:// with zero network access.
+* --pages (live data) -> viz/pages-index.html: identical layout, but the
+  inlined data blob is dropped and the page fetches ./data/latest.json at
+  runtime. Intended to be served over HTTP(S) (e.g. GitHub Pages). Degrades
+  gracefully to a visible error banner if the fetch fails.
 
 Usage:
-    python viz/build_visualizer.py [VIZ_DIR]
+    python viz/build_visualizer.py [--pages] [VIZ_DIR]
 
 Defaults VIZ_DIR to this file's own directory.
 """
@@ -167,11 +174,104 @@ def md_to_html(md: str) -> str:
     return "\n".join(out)
 
 
+# ---------- live-data (Pages) transform ----------
+
+DATA_URL = "./data/latest.json"
+
+# Replaces the inlined data-blob parse. The render code is wrapped in a function
+# and only invoked after fetch() resolves; on failure we show a visible banner
+# instead of a blank page.
+PAGES_LOADER_JS = """
+<script>
+"use strict";
+// Live-data loader for GitHub Pages: fetch the canonical latest snapshot,
+// then run the (deferred) dashboard renderer. No CDNs; same-origin JSON only.
+(function () {
+  function showError(msg) {
+    var main = document.getElementById('main');
+    var banner = document.createElement('div');
+    banner.setAttribute('role', 'alert');
+    banner.style.cssText =
+      'margin:32px 40px;padding:18px 22px;border:1px solid #f85149;' +
+      'border-radius:10px;background:rgba(248,81,73,0.08);color:#f0b6b2;' +
+      'font-size:14px;line-height:1.5;';
+    banner.innerHTML =
+      '<strong>Could not load benchmark data.</strong><br>' +
+      'Tried to fetch <code>%URL%</code>. ' +
+      'This page needs to be served over HTTP(S) (e.g. GitHub Pages) so the ' +
+      'same-origin data file is reachable.<br><span style="opacity:0.8">' +
+      msg + '</span>';
+    if (main) { main.appendChild(banner); } else { document.body.appendChild(banner); }
+  }
+  fetch('%URL%', { cache: 'no-cache' })
+    .then(function (r) {
+      if (!r.ok) { throw new Error('HTTP ' + r.status + ' ' + r.statusText); }
+      return r.json();
+    })
+    .then(function (data) {
+      window.__BENCH_DATA__ = data;
+      if (typeof window.__renderDashboard === 'function') {
+        window.__renderDashboard();
+      } else {
+        showError('Renderer not found.');
+      }
+    })
+    .catch(function (err) { showError(String(err)); });
+})();
+</script>
+""".replace("%URL%", DATA_URL)
+
+
+def to_pages_variant(full_html: str) -> str:
+    """Turn the inlined visualizer HTML into a fetch-based live-data variant."""
+    out = full_html
+
+    # 1. Drop the stale inlined data so nothing ships baked into the page.
+    out = re.sub(
+        r'(<script id="data-blob" type="application/json">).*?(</script>)',
+        r"\1{}\2",
+        out,
+        count=1,
+        flags=re.DOTALL,
+    )
+
+    # 2. Source DATA from the fetched payload instead of the data-blob.
+    parse_line = (
+        "const DATA = JSON.parse(document.getElementById('data-blob').textContent);"
+    )
+    pages_data_line = "const DATA = window.__BENCH_DATA__;"
+    if parse_line not in out:
+        raise RuntimeError("expected data-blob parse line not found in dashboard.html")
+    out = out.replace(parse_line, pages_data_line, 1)
+
+    # 3. Defer the renderer: wrap the render script body in a function that the
+    #    loader calls once data has arrived. The render block is the <script>
+    #    immediately following the data-blob; it begins with `"use strict";`.
+    open_marker = '<script>\n"use strict";\n' + pages_data_line
+    wrapped_open = '<script>\n"use strict";\nwindow.__renderDashboard = function () {\n'
+    if open_marker not in out:
+        raise RuntimeError("could not locate render script opening to wrap")
+    out = out.replace(open_marker, wrapped_open + pages_data_line, 1)
+
+    # Close the wrapper at the end of that same script block. The render block
+    # ends with `})();\n\n</script>` (the final IIFE then the closing tag).
+    close_marker = "})();\n\n</script>"
+    wrapped_close = "})();\n};\n</script>\n" + PAGES_LOADER_JS
+    if close_marker not in out:
+        raise RuntimeError("could not locate render script closing to wrap")
+    out = out.replace(close_marker, wrapped_close, 1)
+
+    return out
+
+
 # ---------- assemble ----------
 
 
 def main() -> None:
-    viz = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else VIZ
+    args = [a for a in sys.argv[1:]]
+    pages = "--pages" in args
+    args = [a for a in args if a != "--pages"]
+    viz = Path(args[0]).resolve() if args else VIZ
 
     dash = (viz / "dashboard.html").read_text()
     insights = md_to_html((viz / INSIGHTS_MD).read_text())
@@ -277,9 +377,15 @@ def main() -> None:
     )
     dash = dash.replace("</body>", tab_js + "\n</body>", 1)
 
-    out = viz / "visualizer.html"
-    out.write_text(dash)
-    print(f"wrote {out} ({len(dash)} bytes)")
+    if pages:
+        pages_html = to_pages_variant(dash)
+        out = viz / "pages-index.html"
+        out.write_text(pages_html)
+        print(f"wrote {out} ({len(pages_html)} bytes) [live-data / Pages]")
+    else:
+        out = viz / "visualizer.html"
+        out.write_text(dash)
+        print(f"wrote {out} ({len(dash)} bytes)")
 
 
 if __name__ == "__main__":
