@@ -4,10 +4,11 @@
   QU:        query_decompose
   Strategy:  search, get_document, list_documents
 
-Plus 3 distractor tools (web_search, tag_document, create_alert):
-plausible schemas that are offered to models but are never the correct
-answer for any task. They test tool discrimination (MCPAgentBench
-pattern).
+Plus 5 distractor tools: 3 categorically wrong (web_search,
+tag_document, create_alert) and 2 semantic near-misses
+(summarize_document, search_history). All are plausible schemas offered
+to models but never the correct answer for any task. They test tool
+discrimination (MCPAgentBench pattern).
 """
 
 from __future__ import annotations
@@ -203,6 +204,75 @@ CREATE_ALERT_TOOL: dict[str, Any] = {
     },
 }
 
+# --- Semantic near-miss distractors ---
+# Closer bait than the categorical distractors above: schemas that mirror
+# the real tools but are still never correct. summarize_document returns
+# generated text instead of retrieving source text (this harness scores
+# retrieval strategy; in a contracts corpus the authoritative language
+# comes from get_document). search_history searches prior interactions
+# instead of the corpus (in chain tasks the prior context is already in
+# the conversation).
+
+SUMMARIZE_DOCUMENT_TOOL: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "summarize_document",
+        "description": (
+            "Produce a concise summary of a document's contents,"
+            " optionally focused on a particular topic or clause type."
+            " Returns a generated summary rather than the document's"
+            " actual text."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "doc_id": {
+                    "type": "string",
+                    "description": "The document identifier.",
+                },
+                "focus": {
+                    "type": "string",
+                    "description": (
+                        "Optional topic or clause type to focus the summary on."
+                    ),
+                },
+            },
+            "required": ["doc_id"],
+        },
+    },
+}
+
+SEARCH_HISTORY_TOOL: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "search_history",
+        "description": (
+            "Search your previous searches and document views in this"
+            " workspace, rather than the document corpus. Use to recall"
+            " what was searched for or retrieved in earlier sessions."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The history search query.",
+                },
+                "filters": {
+                    "type": "object",
+                    "description": (
+                        "Optional metadata filters. Same format as"
+                        " search filters: flat key-value for exact"
+                        " match, start_date/end_date for date ranges."
+                    ),
+                    "additionalProperties": True,
+                },
+            },
+            "required": [],
+        },
+    },
+}
+
 SEARCH_TOOLS: list[dict[str, Any]] = [
     SEARCH_TOOL,
     GET_DOCUMENT_TOOL,
@@ -214,6 +284,8 @@ DISTRACTOR_TOOLS: list[dict[str, Any]] = [
     WEB_SEARCH_TOOL,
     TAG_DOCUMENT_TOOL,
     CREATE_ALERT_TOOL,
+    SUMMARIZE_DOCUMENT_TOOL,
+    SEARCH_HISTORY_TOOL,
 ]
 
 # What the runner passes to models: real tools plus distractors.
