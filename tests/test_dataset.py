@@ -34,8 +34,8 @@ def tasks() -> list[Task]:
     return load_tasks(DATASET_PATH)
 
 
-def test_loads_23_tasks(tasks: list[Task]) -> None:
-    assert len(tasks) == 23
+def test_loads_24_tasks(tasks: list[Task]) -> None:
+    assert len(tasks) == 24
 
 
 def test_expected_tools_are_real_tools(tasks: list[Task]) -> None:
@@ -63,9 +63,19 @@ def test_parallel_tasks(tasks: list[Task]) -> None:
     parallel = {
         t.task_id: t.expected_parallel for t in tasks if t.expected_parallel is not None
     }
-    assert set(parallel) == {"halverson_dispute_02"}
-    specs = parallel["halverson_dispute_02"]
-    assert [spec.tool for spec in specs] == ["search", "search"]
+    assert set(parallel) == {
+        "halverson_dispute_02",
+        "tri_counterparty_parallel_01",
+    }
+    assert [spec.tool for spec in parallel["halverson_dispute_02"]] == [
+        "search",
+        "search",
+    ]
+    assert [spec.tool for spec in parallel["tri_counterparty_parallel_01"]] == [
+        "search",
+        "search",
+        "search",
+    ]
 
 
 def test_chain_lengths(tasks: list[Task]) -> None:
