@@ -6,6 +6,8 @@ A search agent evaluation harness that tests how well different LLMs pick the ri
 
 **North star metric:** CPC (Cost Per Correct) = total run cost / tasks with correct retrieval strategy.
 
+**Secondary north star — history over time:** results accumulate as dated snapshots so CPC/accuracy trends stay visible across dataset and model changes. The data layout preserves this (see "Visualization & publishing"); the dashboard's history *view* is future work. Do **not** churn the eval harness to chase this — just keep every run as a dated snapshot.
+
 **Priority ordering:** Quality first, latency second, dollar cost third.
 
 ## Architecture
@@ -114,8 +116,19 @@ Key decisions and their rationale (don't relitigate — read first):
 10. **`expected_alternatives` for adjudicated ties** — when dataset red-teaming shows two retrieval strategies are equally sound, the task lists both rather than penalizing one. Alternatives are added only after adjudication, never to paper over a vague task.
 11. **Four hardening axes (shipped)** — the first benchmark run showed 10/15 tasks passed by everyone; single-turn selection from small tool sets is saturated industry-wide. Hardened along: (1) longer chains with non-adjacent state dependency, (2) constraint-dense filters, (3) semantic near-miss distractors, (4) parallel invocation scoring (`expected_parallel`). Easy tasks are kept as a baseline floor; the hard tasks are where CPC means something.
 
+## Visualization & publishing
+
+The benchmark dashboard is published at **cpc.sahilashar.com** (Cloudflare Pages). Harness code + data live entirely in this repo; the personal site only links out (never touched on a results refresh).
+
+- **Data layout** (`viz/data/`): `runs/<date>.json` (immutable per-run history) + `latest.json` (the only file the live site fetches) + `runs.json` (manifest, newest-first, for the future history view). `export_bench_data.py` writes all three on every export; `latest.json` always mirrors the newest run.
+- **Two page builds** (`build_visualizer.py`): default → `visualizer.html` (data inlined, opens under `file://`); `--pages` → `pages-index.html` (fetches `./data/latest.json`, served as `index.html`).
+- **Publishing is Path A (manual / on-demand):** `viz/deploy_pages.sh` assembles a clean site dir and runs `wrangler pages deploy` — a direct upload with a scoped `CLOUDFLARE_API_TOKEN`, no cron and no GitHub secret. Flow: local run → PR → Cloudflare preview → merge → deploy.
+- **Path B (later, not built):** scheduled cloud runs + a "publish only if the run is healthy" gate, plus the dashboard history-over-time view. Caveat: gemma can't run in CI (no local Ollama), so cloud runs are API-models-only.
+
 ## What's next
 
-- CPC-methodology blog post (canonical data: `viz/data/bench_data_2026-06-12-r2.json` + `viz/insights-2026-06-12-r2.md`)
+- CPC-methodology blog post (canonical data: `viz/data/runs/2026-06-12-r2.json` + `viz/insights-2026-06-12-r2.md`)
+- Dashboard history-over-time view (trend charts reading `runs.json`)
 - Resolve the `vendor_renewal_decompose_01` keep-strict vs loosen adjudication with the rerun data in hand
 - V2 backlog: anchor-dependent relative-date tasks (Axis E follow-up), `expected_no_call` mode (Axis D redesign), partial credit
+- Path B: scheduled runs + run-health publish gate

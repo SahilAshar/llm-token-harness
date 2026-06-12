@@ -216,3 +216,6 @@ prompt.txt
 
 # Lock mechanism is requirements .in -> compiled .txt; ignore uv's own lock
 uv.lock
+
+# Cloudflare Pages build dir (deploy_pages.sh assembles this)
+viz/_site/

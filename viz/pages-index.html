@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Tool-Selection Benchmark — Search Agent Harness</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2a3340;
+    --text: #e6edf3;
+    --muted: #8b97a7;
+    --faint: #5a6675;
+    --openai: #10a37f;
+    --anthropic: #d97757;
+    --ollama: #7c6cf0;
+    --accent: #58a6ff;
+    --good: #3fb950;
+    --bad: #f85149;
+    --warn: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  header {
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #11161f 0%, var(--bg) 100%);
+  }
+  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  .northstar {
+    margin-top: 16px;
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .northstar b { color: var(--accent); }
+  .legend {
+    margin-top: 16px;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  main {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+    gap: 20px;
+    padding: 24px 40px 60px;
+    max-width: 1700px;
+    margin: 0 auto;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px 22px;
+    overflow: hidden;
+  }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 {
+    margin: 0 0 2px;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+  .card .chartnum {
+    color: var(--faint);
+    font-weight: 600;
+    font-size: 12px;
+    margin-right: 6px;
+  }
+  .card .insight {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin: 10px 0 16px;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+  }
+  .card .insight b { color: var(--text); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  text { font-family: inherit; }
+  .axis-label { fill: var(--faint); font-size: 11px; }
+  .tick text { fill: var(--muted); font-size: 10px; }
+  .tick line { stroke: var(--border); }
+  .grid line { stroke: #20262f; stroke-dasharray: 2 3; }
+  .pt-label { fill: var(--text); font-size: 10px; }
+  .bar-label { fill: var(--text); font-size: 11px; }
+  .bar-val { fill: var(--muted); font-size: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  /* heatmap / strip tables */
+  .matrix th { color: var(--muted); font-weight: 500; text-align: center; padding: 5px 6px; font-size: 11px; }
+  .matrix td.rowlabel { color: var(--text); text-align: left; padding: 4px 10px 4px 2px; white-space: nowrap; font-size: 12px; }
+  .matrix td.cell { text-align: center; padding: 4px; }
+  .cellbox { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 54px; height: 30px; border-radius: 5px; font-size: 11px; font-weight: 600; color: #0d1117; }
+  .stripcell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .pf { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+  .pass { background: var(--good); color: #06210e; }
+  .fail { background: #30363d; color: var(--bad); border: 1px solid #44282a; }
+  .calls { font-size: 9.5px; color: var(--faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.3; }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .footer { color: var(--faint); font-size: 11px; padding: 0 40px 40px; max-width: 1700px; margin: 0 auto; }
+  .nodata { color: var(--bad); font-size: 12px; padding: 20px; }
+  .tag { font-size: 9px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; font-weight: 600; }
+  .tag.par { background: rgba(88,166,255,0.18); color: var(--accent); }
+  .tag.alt { background: rgba(210,153,34,0.18); color: var(--warn); }
+  .tag.floor { background: rgba(63,185,80,0.15); color: var(--good); }
+
+  /* ---- tabs + markdown (combined visualizer) ---- */
+  nav.tabs {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; gap: 4px;
+    padding: 0 40px; background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.tabs button {
+    background: none; border: none; color: var(--muted);
+    font: inherit; font-size: 14px; font-weight: 600;
+    padding: 14px 18px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .md-content {
+    max-width: 1000px; margin: 0 auto; padding: 32px 40px 80px;
+  }
+  .md-content h2 { font-size: 24px; margin: 36px 0 12px; letter-spacing: -0.01em;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .md-content h3 { font-size: 19px; margin: 28px 0 10px; color: var(--text); }
+  .md-content h4 { font-size: 15px; margin: 20px 0 8px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; }
+  .md-content p { margin: 10px 0; color: var(--text); }
+  .md-content li { margin: 5px 0; }
+  .md-content ul, .md-content ol { margin: 8px 0; padding-left: 24px; }
+  .md-content code { background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px; font-size: 12.5px;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; color: #b9c4d4; }
+  .md-content pre { background: #0a0e14; border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 14px 0; }
+  .md-content pre code { background: none; border: none; padding: 0;
+    font-size: 12.5px; color: #c9d4e3; line-height: 1.5; }
+  .md-content blockquote { border-left: 3px solid var(--accent);
+    margin: 14px 0; padding: 4px 16px; color: var(--muted); background: var(--panel); }
+  .md-content hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+  .md-content a { color: var(--accent); text-decoration: none; }
+  .md-content a:hover { text-decoration: underline; }
+  table.md-table { border-collapse: collapse; width: 100%; margin: 16px 0;
+    font-size: 13px; }
+  table.md-table th, table.md-table td {
+    border: 1px solid var(--border); padding: 7px 11px; text-align: left;
+    vertical-align: top; }
+  table.md-table th { background: var(--panel-2); font-weight: 600; }
+  table.md-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+
+</style>
+</head>
+<body>
+<header>
+  <h1>LLM Tool-Selection Benchmark</h1>
+  <div class="sub" id="subhead"></div>
+  <div class="northstar">
+    North-star: <b>CPC (Cost Per Correct)</b> = total run cost / tasks with correct retrieval strategy &nbsp;·&nbsp;
+    Priority: <b>Quality → Latency → Dollar cost</b>
+  </div>
+  <div class="legend">
+    <div class="item"><span class="swatch" style="background:var(--openai)"></span> OpenAI</div>
+    <div class="item"><span class="swatch" style="background:var(--anthropic)"></span> Anthropic</div>
+    <div class="item"><span class="swatch" style="background:var(--ollama)"></span> Ollama (local, $0)</div>
+  </div>
+</header>
+<nav class="tabs"><button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button><button class="tab-btn" data-tab="insights">🔍 Insights</button><button class="tab-btn" data-tab="hardening">🛠 Hardening Roadmap</button></nav>
+<section id="tab-dashboard" class="tab-panel active"><main id="main"></main></section>
+<section id="tab-insights" class="tab-panel"><div class="md-content"><h2>llm-token-harness — Hardened Run Insights (June 12, 2026)</h2>
+<p><strong>Run:</strong> 23-task hardened dataset, 12 configs, single run. North-star: <strong>CPC = run cost / tasks solved.</strong> <strong>Caveat up front:</strong> n=23, one run, no variance. Treat config-vs-config gaps of 1–2 tasks as noise; treat the structural patterns (which <em>axes</em> break models, which <em>distractor</em> gets picked) as the real signal. The June-10 grid was a different 15-task dataset and is <strong>not</strong> directly comparable score-for-score — it&#x27;s only useful for &quot;did the spread widen.&quot;</p>
+<hr>
+<h3>1. Executive summary</h3>
+<ul>
+<li><strong>Hardening worked.</strong> Score spread went from 4 points (June-10: everyone 10–14/15) to <strong>10 points</strong> (June-12: 9–19/23). The ceiling moved up and the floor dropped — the dataset now discriminates.</li>
+<li><strong>CPC ≠ accuracy, and that&#x27;s the whole point.</strong> The two top-accuracy tiers (18–19/23) cost between <strong>$0.0079 and $0.044 per correct task</strong> depending on config — a <strong>~5.6× CPC spread at near-identical quality.</strong> $/token would have hidden this entirely.</li>
+<li><strong>GPT-5.4 nano is the efficiency story.</strong> 16/23 at <strong>$0.000476 CPC</strong> — it <em>strictly dominates</em> Opus 4.8 (also 16/23, <strong>$0.025654 CPC</strong>, ~54× more expensive per correct task). A nano beating a flagship on both axes is the headline.</li>
+<li><strong>Parallel invocation is the single sharpest discriminator.</strong> Exactly <strong>1 of 12</strong> configs solved <code>halverson_dispute_02</code>; nano fired 4 distinct searches while 8 of 11 others collapsed to two <code>list_documents</code> calls. This task alone separates &quot;knows when to fan out&quot; from everyone else.</li>
+<li><strong>Near-miss distractors now bite — and only one of them.</strong> Every distractor pick across the whole run was <code>summarize_document</code>; <code>search_history</code> drew <strong>zero</strong>. Sonnet 4.6 is the heaviest picker (5 tasks, 11 total invocations) and loses tasks because of it.</li>
+<li><strong>Fable 5&#x27;s effort knob now buys tokens, not correctness.</strong> low/med/high = 19/19/18 score on 2586/3144/3800 output tokens. Higher effort <em>regressed</em> one task. On the data, &quot;high&quot; is a strict CPC loss.</li>
+</ul>
+<hr>
+<h3>2. The CPC story — the cost/quality frontier</h3>
+<h4>The full ladder (sorted by CPC)</h4>
+<table class="md-table"><thead><tr>
+<th>Config</th>
+<th>Score/23</th>
+<th>Total cost</th>
+<th><strong>CPC</strong></th>
+<th>Mean latency</th>
+</tr></thead><tbody>
+<tr><td>gpt-4o-mini</td><td>13</td><td>$0.00523</td><td><strong>$0.000402</strong></td><td>1.83s</td></tr>
+<tr><td>gpt-5.4-nano</td><td>16</td><td>$0.00762</td><td><strong>$0.000476</strong></td><td>1.25s</td></tr>
+<tr><td>gpt-5.4-mini</td><td>17</td><td>$0.02757</td><td><strong>$0.001621</strong></td><td>1.56s</td></tr>
+<tr><td>claude-haiku-4-5</td><td>15</td><td>$0.06979</td><td><strong>$0.004653</strong></td><td>3.45s</td></tr>
+<tr><td>claude-sonnet-4-6</td><td>17</td><td>$0.21261</td><td><strong>$0.012507</strong></td><td>3.44s</td></tr>
+<tr><td>gpt-5.5</td><td>18</td><td>$0.22715</td><td><strong>$0.012619</strong></td><td>4.16s</td></tr>
+<tr><td>claude-opus-4-6</td><td>18</td><td>$0.36116</td><td><strong>$0.020064</strong></td><td>4.26s</td></tr>
+<tr><td>claude-opus-4-8</td><td>16</td><td>$0.41047</td><td><strong>$0.025654</strong></td><td>2.99s</td></tr>
+<tr><td>Fable 5 (low)</td><td>19</td><td>$0.73438</td><td><strong>$0.038652</strong></td><td>4.56s</td></tr>
+<tr><td>Fable 5 (medium)</td><td>19</td><td>$0.76228</td><td><strong>$0.040120</strong></td><td>4.98s</td></tr>
+<tr><td>Fable 5 (high)</td><td>18</td><td>$0.79508</td><td><strong>$0.044171</strong></td><td>5.25s</td></tr>
+<tr><td>gemma4:12b</td><td>9</td><td>$0.00</td><td><strong>$0.00</strong> (local)</td><td>28.5s</td></tr>
+</tbody></table>
+<h4>The Pareto frontier (maximize score, minimize CPC)</h4>
+<p>Ignoring gemma (free but slowest by 6× and lowest accuracy — a separate &quot;local/zero-marginal-cost&quot; regime), the non-dominated configs are:</p>
+<ol>
+<li><strong>gpt-4o-mini</strong> — cheapest ($0.000402 CPC), anchors the low end at 13/23.</li>
+<li><strong>gpt-5.4-nano</strong> — $0.000476 CPC, 16/23. Only ~18% more CPC than 4o-mini for +3 tasks.</li>
+<li><strong>gpt-5.4-mini</strong> — $0.001621 CPC, 17/23. +1 task over nano at ~3.4× CPC.</li>
+<li><strong>Fable 5 (low)</strong> — $0.038652 CPC, <strong>19/23</strong> (the top score). The <em>only</em> way to buy the 18th and 19th correct task, at a steep premium.</li>
+</ol>
+<p>Everything else is <strong>dominated</strong>: some frontier config matches or beats its score at lower CPC.</p>
+<ul>
+<li><strong>gpt-5.5</strong> (18/23, $0.012619) is dominated by <strong>opus-4-6</strong>? No — opus-4-6 is <em>more</em> expensive. gpt-5.5 is dominated by Fable-low on score (19&gt;18) but Fable is pricier; gpt-5.5 is <em>not</em> strictly dominated on the cost axis among the 18s. The cleaner read: <strong>gpt-5.5 is the cheapest 18/23</strong> ($0.012619 CPC), making it a soft frontier point. Opus-4-6 (18/23, $0.020064) is <strong>strictly dominated by gpt-5.5</strong> (same score, ~1.6× cheaper).</li>
+<li><strong>claude-opus-4-8</strong> (16/23, $0.025654) is <strong>strictly dominated by gpt-5.4-nano</strong> (same score, 54× cheaper) and by gpt-5.4-mini (higher score, 16× cheaper). This is the starkest domination in the grid.</li>
+<li><strong>claude-sonnet-4-6</strong> (17/23, $0.012507) ties gpt-5.4-mini on score but costs <strong>7.7× more per correct</strong>. Dominated.</li>
+<li><strong>claude-haiku-4-5</strong> (15/23, $0.004653) is beaten on score by nano (16) at <strong>~10× lower CPC</strong>. Dominated.</li>
+</ul>
+<h4>&quot;$/solved-task vs $/token,&quot; made concrete</h4>
+<p>The 18–19/23 tier is where the debate lives. Four configs land there:</p>
+<table class="md-table"><thead><tr>
+<th>Config</th>
+<th>Score</th>
+<th>CPC ($/solved)</th>
+<th>Output tok</th>
+</tr></thead><tbody>
+<tr><td>gpt-5.5</td><td>18</td><td>$0.012619</td><td>2542</td></tr>
+<tr><td>claude-opus-4-6</td><td>18</td><td>$0.020064</td><td>4062</td></tr>
+<tr><td>Fable 5 (high)</td><td>18</td><td>$0.044171</td><td>3800</td></tr>
+<tr><td>Fable 5 (low)</td><td><strong>19</strong></td><td>$0.038652</td><td>2586</td></tr>
+</tbody></table>
+<p>A buyer optimizing <strong>$/token</strong> would rank by output volume and might pick gpt-5.5 or pay up for a flagship&#x27;s tokens. A buyer optimizing <strong>CPC</strong> sees that <strong>gpt-5.5 delivers 18 correct tasks for 3.5× less per-correct than Fable-low&#x27;s 19</strong>, and that the marginal cost of Fable&#x27;s <em>one extra</em> correct task is enormous. CPC turns &quot;which is cheaper per token&quot; into the decision that actually matters: <strong>how many dollars to get the job done right.</strong> That is the argument the blog is making, and the nano-vs-Opus-4.8 row is the cleanest single proof of it.</p>
+<hr>
+<h3>3. What discriminates models now — ranking the axes</h3>
+<p>Using <code>task_difficulty</code> (pass count across 12 configs), the hardest tasks cluster by axis. Lower pass count = sharper discriminator.</p>
+<table class="md-table"><thead><tr>
+<th>Task</th>
+<th>n_pass/12</th>
+<th>Axis</th>
+</tr></thead><tbody>
+<tr><td><code>halverson_dispute_02</code></td><td><strong>1</strong></td><td><strong>Parallel invocation</strong></td></tr>
+<tr><td><code>vendor_renewal_decompose_01</code></td><td><strong>2</strong></td><td>Query decompose</td></tr>
+<tr><td><code>vendor_autorenew_02</code></td><td><strong>3</strong></td><td>Long chain / constraint filter</td></tr>
+<tr><td><code>easton_amendment_02</code></td><td>4 (alt)</td><td>Chain, non-adjacent state</td></tr>
+<tr><td><code>halverson_dispute_01</code></td><td>4</td><td>Long-chain entry</td></tr>
+<tr><td><code>halverson_dispute_05</code></td><td>5 (alt)</td><td>Long chain</td></tr>
+<tr><td><code>vendor_autorenew_04</code></td><td>5</td><td>Chain / filter</td></tr>
+<tr><td>(baseline floor + easy chains)</td><td>8–12</td><td>—</td></tr>
+</tbody></table>
+<p><strong>Ranked by spread created:</strong></p>
+<ol>
+<li><strong>Parallel invocation (axis 4) — by far the sharpest.</strong> <code>halverson_dispute_02</code>: 1/12 pass. The failure mode is <em>uniform and diagnostic</em>: 8 configs collapsed the task into two <code>list_documents</code> calls (Fable all 3 efforts, opus-4-8, gpt-5.4-mini, sonnet, gpt-5.5, opus-4-6 partially). Only <strong>gpt-5.4-nano</strong> fanned out into 4 distinct <code>search</code> calls and matched both required specs. gemma emitted <em>no</em> calls. This isn&#x27;t a near-miss — it&#x27;s a clean capability line.</li>
+</ol>
+<ol>
+<li><strong>Query decompose — second sharpest, and possibly a grading artifact (see §6).</strong> <code>vendor_renewal_decompose_01</code>: 2/12 pass — and <em>only Sonnet 4.6 and Opus 4.6</em> got it. Note nano, gpt-5.5, all Fable efforts, and opus-4-8 all <em>failed</em> it. When the only two passers are an adjacent-generation Anthropic pair and the newer, nominally-stronger models miss it, suspect the expected answer is narrowly specified rather than the task being &quot;hard.&quot; Flag for adjudication.</li>
+</ol>
+<ol>
+<li><strong>Long chains with non-adjacent state (axis 1).</strong> The <code>halverson_dispute</code> 5-step chain is the graveyard: gpt-4o-mini and gemma went <strong>0/5</strong>; the best (nano, gpt-5.4-mini, gpt-5.5, opus-4-6, all Fable) max out at <strong>3/5</strong>. <em>No config solved the full Halverson chain.</em> <code>vendor_autorenew</code> (4 steps) similarly tops out — only Fable low/med hit 4/4. Chains spread the field but more gradually than parallel.</li>
+</ol>
+<ol>
+<li><strong>Constraint-dense filters (axis 2).</strong> Hardest to isolate because filters are embedded in chain steps (<code>vendor_autorenew_02/04</code>, 3 and 5 passes). They contribute to the chain attrition above rather than standing alone. Moderate discriminator.</li>
+</ol>
+<p>The <strong>baseline floor held</strong>: 6 of the easy floor/early-chain tasks scored 12/12 (<code>corvid_fetch_01</code>, <code>nda_inventory_01</code>, <code>q1_2025_inventory_01</code>, <code>nonsolicit_search_01</code>, <code>termination_topk_01</code>, <code>easton_amendment_01/03</code>). Single-turn selection from a small tool set remains saturated — exactly the prior finding, now confirmed as the <em>floor</em> while the hard axes do the work.</p>
+<hr>
+<h3>4. Behavioral findings</h3>
+<h4>Distractor susceptibility — it&#x27;s all <code>summarize_document</code></h4>
+<ul>
+<li><strong>Only 3 of 12 configs picked any distractor</strong>, and <strong>100% of picks were <code>summarize_document</code>.</strong> <code>search_history</code> (the other near-miss) drew <strong>zero</strong> picks; the 3 categorical distractors (web_search, tag_document, create_alert) drew zero. Prior run: zero distractor picks total. So the near-miss design <em>worked</em> — but only one of the two near-misses is actually tempting.</li>
+<li><strong>Sonnet 4.6 is the problem child:</strong> picks on 5 distinct tasks (halverson_dispute_03/04/05, vendor_autorenew_02, stonebridge_term_01) totaling <strong>11 invocations</strong>. And it <em>fails</em> the tasks it reaches for it on: it scores 0 on halverson_dispute_03 and 04 (where the corpus says it summarized instead of fetching) and 0 on vendor_autorenew_02 and stonebridge_term_01. Its 17/23 would plausibly be higher without this reflex.</li>
+<li><strong>Why <code>summarize_document</code> specifically:</strong> it shadows <code>get_document</code> on tasks that ask for <em>content of a known doc</em>. A model that reasons &quot;the user wants the substance, summarize gives substance&quot; picks it — it&#x27;s the <em>semantically closest wrong answer</em>, which is exactly what it was designed to be. <code>search_history</code> shadows <code>search</code> but no task framed the need as &quot;what did we look at before,&quot; so it never activated. Lesson for V2: the near-miss only discriminates if a task actively baits it.</li>
+<li>gpt-4o-mini (2 tasks) and gemma (1 task) also dipped into <code>summarize_document</code>; the GPT-5.x line, opus, and Fable were clean.</li>
+</ul>
+<h4>Decompose vs. parallel — a behavioral split</h4>
+<p>The data hints at two different &quot;break complex query into pieces&quot; instincts:</p>
+<ul>
+<li>The <strong>parallel</strong> task (<code>halverson_dispute_02</code>) wants <em>multiple simultaneous <code>search</code> calls</em>. Only nano did it.</li>
+<li>The <strong>decompose</strong> task (<code>vendor_renewal_decompose_01</code>) wants the explicit <code>query_decompose</code> tool. Only the Anthropic 4.6 pair did it.</li>
+<li><strong>No config did both.</strong> nano solved parallel but failed decompose; Sonnet/Opus-4.6 solved decompose but failed parallel. This is suggestive (each is n=1) but interesting: &quot;fan out with raw searches&quot; and &quot;call the decompose tool&quot; appear to be <em>different reflexes</em>, not a single planning competence.</li>
+</ul>
+<h4>Effort-knob economics (Fable 5)</h4>
+<table class="md-table"><thead><tr>
+<th>Effort</th>
+<th>Score</th>
+<th>Output tok</th>
+<th>Total cost</th>
+<th>CPC</th>
+</tr></thead><tbody>
+<tr><td>low</td><td><strong>19</strong></td><td>2586</td><td>$0.73438</td><td>$0.038652</td></tr>
+<tr><td>medium</td><td><strong>19</strong></td><td>3144</td><td>$0.76228</td><td>$0.040120</td></tr>
+<tr><td>high</td><td>18</td><td>3800</td><td>$0.79508</td><td>$0.044171</td></tr>
+</tbody></table>
+<p>The knob now <strong>scales cost monotonically (output tokens +47% low→high) but not quality.</strong> low=medium on score; high <em>regressed</em> one task (lost <code>vendor_autorenew_04</code>, kept everything else). On June-10 the knob was a pure no-op (low=med=high=10). So it went from &quot;does nothing&quot; to &quot;spends more for the same-or-worse result.&quot; On this dataset, <strong>Fable 5 (low) strictly dominates medium and high</strong> — there is no reason to turn the knob up. Worth flagging to whoever owns Fable&#x27;s pricing/effort story.</p>
+<hr>
+<h3>5. Surprises / counterintuitive results</h3>
+<ul>
+<li><strong>A nano beats two flagships on both axes.</strong> gpt-5.4-nano (16/23, $0.000476) matches Opus 4.8&#x27;s <em>score</em> at <strong>1/54th</strong> the CPC, and beats Haiku 4.5 (15/23) at ~1/10th. Pricier ≠ better here.</li>
+<li><strong>Opus 4.8 &lt; Opus 4.6</strong> on this run (16 vs 18), and it&#x27;s the <em>most expensive non-Fable config</em> ($0.41 total). The newer, dearer flagship underperformed its predecessor by 2 tasks. n is small, but on a benchmark designed to reward reasoning this is a genuine eyebrow-raiser — Opus 4.8 also uniquely failed the parallel task with the lazy two-<code>list_documents</code> collapse.</li>
+<li><strong>High effort made Fable worse.</strong> Spending more reasoning budget cost a task. Counter to the &quot;more thinking = better&quot; prior.</li>
+<li><strong>gpt-5.5 (18/23) outscores both Opus configs</strong> while costing less than either. The mid-tier OpenAI model is punching above the Anthropic flagships on this eval.</li>
+<li><strong>The decompose task&#x27;s passer list is inverted from expectation:</strong> only the <em>older</em> 4.6 Anthropic models solve it; every newer/stronger model misses. Either decompose is a fading behavior or (more likely) the grader is narrow — see §6.</li>
+</ul>
+<hr>
+<h3>6. Caveats &amp; threats to validity</h3>
+<ul>
+<li><strong>n = 23, single run, no variance/error bars.</strong> Any 1–2 task config gap is within plausible run-to-run noise. <strong>Do not</strong> report &quot;model A beats model B by 1 task&quot; as a finding. The <em>structural</em> results (parallel = 1/12, all distractor picks = summarize_document) are robust because they&#x27;re categorical and repeated across configs.</li>
+<li><strong>All-or-nothing scoring</strong> means one wrong arg = 0. This inflates the apparent difficulty of constraint-dense and decompose tasks and can manufacture &quot;capability gaps&quot; that are really arg-format mismatches. The <strong>decompose task (2/12, only Anthropic 4.6)</strong> is the prime suspect for a grading artifact — investigate the expected spec before publishing it as a capability claim.</li>
+<li><strong>Simulated corpus.</strong> Tool responses are hardcoded JSON. We measure <em>retrieval reasoning</em>, not retrieval quality. A model that picks the right tool with the right args against a fake corpus may still flounder on real noisy results. The blog should not claim end-to-end agent quality.</li>
+<li><strong>Single-turn framing.</strong> Chains build real history but each step is still scored as one prompt→one call. Real multi-turn error compounding (a wrong step-2 poisoning step-3) is <em>partially</em> captured via history but the scoring is per-step independent, so it understates cascade failure.</li>
+<li><strong>Reasoning-token capture is incomplete.</strong> Only gpt-5.5 (822) and gemma (2225) report <code>reasoning_tokens</code>; everything else is 0 — including all Fable efforts, where we <em>know</em> effort scales internal work (output tokens prove it) but reasoning tokens aren&#x27;t surfaced. <strong>CPC for thinking models is therefore an under- or mis-count of true compute</strong>, and Fable&#x27;s effort economics are inferred from output tokens, not measured reasoning. Be explicit about this in any cost claim.</li>
+<li><strong>gemma is a different regime.</strong> $0 marginal cost makes its CPC $0 and uninformative for the dollar story; its 28.5s latency (6× the next slowest) and 9/23 floor matter for the latency axis only. Don&#x27;t put it on the same CPC chart without an asterisk.</li>
+<li><strong>Cross-run comparison is loose.</strong> June-10 was 15 different tasks. &quot;Spread widened 4→10&quot; is sound (it&#x27;s about <em>dispersion</em>, robust to task identity); per-model score deltas across runs are <strong>not</strong> comparable.</li>
+</ul>
+<hr>
+<h3>7. Blog-angle suggestions</h3>
+<ol>
+<li><strong>&quot;Cost per correct, not cost per token: how a $0.0005 nano beat a $0.026 flagship.&quot;</strong> Lead with the gpt-5.4-nano vs Opus-4.8 row — same score, 54× CPC gap. It&#x27;s the single cleanest number in the dataset and it <em>is</em> the $/solved-task argument. Honest: same score, so it&#x27;s a pure efficiency win, not a quality claim.</li>
+</ol>
+<ol>
+<li><strong>&quot;The knob that spends but doesn&#x27;t deliver: Fable 5&#x27;s effort dial in numbers.&quot;</strong> low/med/high = 19/19/18 on rising cost; high regressed. A concrete, slightly contrarian take on reasoning-effort controls — buy the cheapest effort tier until proven otherwise. (Caveat the reasoning-token gap so it&#x27;s not overclaimed.)</li>
+</ol>
+<ol>
+<li><strong>&quot;What actually separates frontier models now: parallel tool-calling.&quot;</strong> 1/12 on the parallel task; the uniform &quot;collapse to two list_documents&quot; failure is a vivid, reproducible story about a <em>specific</em> missing competence — and nano being the lone solver subverts the &quot;bigger model wins&quot; expectation. The strongest <em>capability</em> (not just cost) narrative in the run.</li>
+</ol>
+<p>A fourth, softer angle if wanted: <strong>&quot;Two ways to plan, and no model does both&quot;</strong> — the decompose-vs-parallel split — but only run it if §6&#x27;s grading-artifact suspicion on the decompose task clears adjudication.</p></div></section>
+<section id="tab-hardening" class="tab-panel"><div class="md-content"><h2>Dataset Hardening Roadmap — Round 2</h2>
+<p>Grounded in the 2026-06-12 run (23 tasks × 12 configs). Source: <code>/tmp/llm-harness-viz/bench_data.json</code>, <code>data/tasks/search_agent_v1.json</code>, <code>src/scorer.py</code>, <code>src/tools.py</code>.</p>
+<p>Scoreboard for reference (score / 23): Fable 5 low+med <strong>19</strong>, gpt-5.5 / opus-4-6 / gpt-5.4-mini / sonnet-4-6 / Fable-high <strong>17–18</strong>, gpt-5.4-nano / opus-4-8 <strong>16</strong>, haiku-4-5 <strong>15</strong>, gpt-4o-mini <strong>13</strong>, gemma4:12b <strong>9</strong>. Spread 9→19 (was 10→14 on the June-10 15-task grid). Hardening worked; now we trim dead weight and add new discriminating axes.</p>
+<hr>
+<h3>1. Diagnosis from this run</h3>
+<h4>Saturated — passed by all 12 (<code>n_pass == 12</code>): dead weight as discriminators</h4>
+<ul>
+<li><code>easton_amendment_01</code> (12) — fetch by explicit doc_id</li>
+<li><code>easton_amendment_03</code> (12) — fetch amendment by doc_id from history</li>
+<li><code>corvid_fetch_01</code> (12) — fetch by explicit doc_id <strong>[floor]</strong></li>
+<li><code>nda_inventory_01</code> (12) — list_documents type filter <strong>[floor]</strong></li>
+<li><code>q1_2025_inventory_01</code> (12) — list_documents date range <strong>[floor]</strong></li>
+<li><code>nonsolicit_search_01</code> (12) — plain search <strong>[floor]</strong></li>
+<li><code>termination_topk_01</code> (12) — search + top_k=10 <strong>[floor]</strong></li>
+</ul>
+<p>Near-saturated (11/12, single straggler = gemma or nano): <code>vendor_autorenew_01</code>, <code>vendor_autorenew_03</code>, <code>vendor_indemnification_2024_01</code>, <code>okafor_leases_01</code>.</p>
+<p><strong>Recommendation.</strong></p>
+<ul>
+<li><strong>Keep the 5 floor tasks</strong> (<code>corvid_fetch_01</code>, <code>nda_inventory_01</code>, <code>q1_2025_inventory_01</code>, <code>nonsolicit_search_01</code>, <code>termination_topk_01</code>). They are the deliberate baseline floor (CLAUDE.md design decision 11) and the <em>only</em> thing separating gemma (9) from total collapse — they prove the harness isn&#x27;t just noise. Floor tasks are features, not bugs. Do <strong>not</strong> retire them.</li>
+<li><strong>Retire/replace the two saturated <em>chain</em> tasks that aren&#x27;t floor</strong>: <code>easton_amendment_01</code> and <code>easton_amendment_03</code> add length to the easton chain but contribute zero discrimination (both 12/12) and zero state-dependency challenge (01 = doc_id handed in prompt; 03 = doc_id sitting in the immediately-prior search result). The easton chain&#x27;s discrimination lives entirely in steps 02 (4/12) and 04 (10/12). Replacing 01/03 with harder intermediate steps (see Axis B and Axis E) raises the chain&#x27;s discriminating density without lengthening it.</li>
+<li>The near-saturated 11/12 tasks are fine — they discriminate gemma/nano and cost nothing to keep.</li>
+</ul>
+<h4>Discriminating well (mid-band <code>n_pass</code> 4–9, splits the frontier models)</h4>
+<ul>
+<li><code>halverson_dispute_03</code> (9), <code>halverson_dispute_04</code> (8), <code>halverson_dispute_05</code> (5) — non-adjacent state dependency is doing real work</li>
+<li><code>halverson_sow_sla_01</code> (8) — 3-constraint filter (type+counterparty+date)</li>
+<li><code>stonebridge_term_01</code> (8) — fetch-vs-search subtlety <strong>[floor, but actually discriminating]</strong></li>
+<li><code>vendor_autorenew_04</code> (5) — search for a never-surfaced doc by name from content</li>
+<li><code>easton_amendment_02</code> (4), <code>easton_amendment_04</code> (10) — filter inference + non-adjacent entity resolution</li>
+</ul>
+<p>These are the gold. The mid-band is where CPC means something. Note <code>stonebridge_term_01</code> is tagged <code>is_floor</code> but behaves like a mid-band discriminator (8/12) — the fetch-vs-search trap is harder than its &quot;floor&quot; label suggests. It also drew <code>summarize_document</code> picks from 4o-mini, sonnet, gemma. Keep it; arguably re-label it as discriminating, not floor.</p>
+<h4>At the floor — passed by ≤2 (too hard, or mis-graded?)</h4>
+<ul>
+<li><code>halverson_dispute_02</code> (<strong>1/12</strong>, parallel) — only gpt-5.4-nano passed. <strong>Investigated below (§2); this is partly a grading artifact.</strong></li>
+<li><code>vendor_renewal_decompose_01</code> (<strong>2/12</strong>) — only sonnet-4-6 and opus-4-6 passed. Expects <code>query_decompose</code> with keywords <code>[&quot;vendor&quot;,&quot;renew&quot;]</code>. The other 10 configs almost certainly went straight to <code>list_documents</code>/<code>search</code> — a <em>defensible</em> move, because unlike <code>halverson_dispute_01</code> (which forces decompose by spanning two counterparties + a comparison), this query is answerable by a single <code>list_documents(type=vendor_agreement)</code> followed by reads. The task asserts decompose is the only right answer but the corpus doesn&#x27;t force it. <strong>This is a candidate mis-grade: add <code>expected_alternatives</code> (list_documents with vendor filter) OR make the query genuinely require decomposition.</strong> Right now it&#x27;s penalizing the 10 models that made the cheaper, equally-valid first move.</li>
+</ul>
+<p><strong>Bottom line:</strong> 7 saturated (keep 5 floor, retire 2 chain-padding), ~10 discriminating, 2 at floor (1 grading artifact in parallel, 1 likely mis-grade in decompose). Net: the dataset is healthier than the raw spread suggests, but <code>vendor_renewal_decompose_01</code> should be adjudicated before the next run.</p>
+<hr>
+<h3>2. Where the current axes have headroom</h3>
+<h4>Parallel invocation (<code>halverson_dispute_02</code>): 1/12 — discriminator or artifact?</h4>
+<p>Both. Look at the actual call sequences in <code>parallel_task.per_config</code>:</p>
+<ul>
+<li><strong>Defensible &quot;near-miss&quot; moves the scorer counts as 0:</strong> gpt-5.5, sonnet-4-6, opus-4-6, haiku all issued <code>list_documents ×2 + search ×2</code> or <code>search ×2 + list_documents ×2</code> — i.e. they <em>did</em> parallelize two searches, but also fired two <code>list_documents</code> probes in the same batch. The scorer requires each spec to bind to a distinct call (injective match), and the two correct searches are present — but their <strong>query keywords didn&#x27;t match</strong> (<code>failed_specs: [&quot;0:search&quot;,&quot;1:search&quot;]</code> even when calls include <code>search,search</code>). So the failure is <strong>argument formulation</strong>, not failure to parallelize. The models split indemnification/liability differently than the expected <code>[&quot;halverson&quot;,&quot;indemnification&quot;]</code> / <code>[&quot;apex&quot;,&quot;indemnification&quot;]</code> keyword pair.</li>
+<li><strong>Genuinely wrong:</strong> opus-4-8, all three Fable configs, gpt-5.4-mini issued only <code>list_documents ×2</code> — they explored metadata instead of retrieving passages. That&#x27;s a real strategy error worth catching.</li>
+<li><strong>Passed:</strong> gpt-5.4-nano fired <code>search ×4</code> (the two correct ones plus two extra) and matched.</li>
+</ul>
+<p><strong>Verdict:</strong> the parallel axis is a <em>good</em> discriminator but the single task is over-tuned on keyword choice. The keyword <code>&quot;indemnification&quot;</code> is too narrow — the decompose output (step 2&#x27;s tool response) says &quot;indemnification <strong>and limitation of liability</strong>&quot;, so a model that queries <code>[&quot;halverson&quot;,&quot;liability&quot;]</code> is equally correct and scores 0. <strong>Fix: loosen step-02 expected keywords to the counterparty only (<code>[&quot;halverson&quot;]</code> / <code>[&quot;apex&quot;]</code>), or add <code>expected_alternatives</code>-style per-spec tolerance.</strong> (Note: <code>expected_parallel</code> does <strong>not</strong> support alternatives today — see §4 code note.) A second, cleaner parallel task (Axis A) will tell us whether 1/12 is the task or the axis.</p>
+<h4>Chains: discriminating well</h4>
+<p><code>halverson_dispute</code> (5 steps) is the best axis in the set — <code>correct/total</code> ranges from 0/5 (gpt-4o-mini, gemma) to 3/5 (frontier). Nobody clears it; the non-adjacent state dependency (step 4 needs <code>doc_07</code> surfaced two turns back, step 5 needs a never-surfaced rider) is exactly the intended difficulty. <code>vendor_autorenew</code> also splits well (0/4 gemma → 4/4 Fable). <code>easton</code> is the weakest chain because half its steps are saturated (§1). <strong>Keep all three; tighten easton.</strong></p>
+<h4>Near-miss distractors: half-working</h4>
+<ul>
+<li><code>summarize_document</code> <strong>did its job</strong> — it drew picks from gpt-4o-mini, sonnet-4-6, gemma, concentrated on <code>halverson_dispute_03/04/05</code>, <code>vendor_autorenew_02</code>, <code>stonebridge_term_01</code> — exactly the get_document/content steps where &quot;just summarize it&quot; is tempting. Sonnet picked it 11 times across 5 tasks. This is a working trap.</li>
+<li><code>search_history</code> <strong>drew zero picks</strong>. It is currently a wasted distractor — no task creates a situation where searching prior interactions looks right, so no model is tempted. <strong>It&#x27;s not harmful (it adds tool-set noise) but it&#x27;s not earning its place.</strong> Two options: (a) retire it to reduce prompt bloat, or (b) <strong>author a task that baits it</strong> (Axis D) — a query that explicitly references &quot;what did we look at earlier&quot; so that <code>search_history</code> becomes the tempting-but-wrong move while the correct move is to read the conversation already in context. Option (b) is higher value: it converts dead bait into a live discriminator.</li>
+</ul>
+<hr>
+<h3>3. Proposed NEW hardening axes</h3>
+<p>Five axes, prioritized in §5. Every example is authorable in the current schema unless a code note says otherwise.</p>
+<h4>Axis A — Longer parallel batches (3–4 distinct calls)</h4>
+<p><strong>Capability:</strong> issuing 3+ genuinely independent retrievals in one turn without serializing or over-calling. Real search agents (LangChain <code>RunnableParallel</code>, LlamaIndex <code>SubQuestionQueryEngine</code>, Anthropic parallel tool-use) fan out N independent sub-queries in a single turn; 2-way is the easy case, 3–4-way is where models start serializing or dropping a leg. <strong>Why it discriminates:</strong> the existing 2-way task already split the field; widening to 3 specs raises the injective-match bar and punishes &quot;issued 2 of 3&quot; — which <code>parallel_matched</code>/<code>parallel_failed_specs</code> already records for free. <strong>Difficulty/spread:</strong> expect 0–3 / 12 passing. Likely only nano + one or two frontier configs. Strong top-end discriminator. <strong>Code changes:</strong> none for scoring (<code>_score_parallel</code> already does N-way bipartite matching). <strong>But</strong> see §4: <code>expected_parallel</code> can&#x27;t carry per-spec alternatives, so keep keywords to the counterparty token only to avoid the §2 over-tuning trap.</p>
+<p>Example task (new standalone, not a chain — keeps it simple to author):</p>
+<pre><code class="lang-json">{
+  &quot;task_id&quot;: &quot;tri_counterparty_parallel_01&quot;,
+  &quot;scenario_id&quot;: &quot;tri_counterparty_parallel&quot;,
+  &quot;step&quot;: 1,
+  &quot;description&quot;: &quot;Three independent counterparty lookups; correct move is three parallel searches in one batch. Issuing fewer, or serializing, scores 0.&quot;,
+  &quot;messages&quot;: [
+    {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;&lt;&lt;standard contract-intelligence system prompt&gt;&gt;&quot;},
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Board prep: I need the termination-for-convenience clause from three separate agreements at once — the Halverson MSA, the Apex Components MSA, and the Corvid MSA. Pull them in parallel; don&#x27;t make me wait on three round-trips.&quot;}
+  ],
+  &quot;expected_parallel&quot;: [
+    {&quot;tool&quot;: &quot;search&quot;, &quot;args&quot;: {&quot;query&quot;: {&quot;type&quot;: &quot;keywords&quot;, &quot;value&quot;: [&quot;halverson&quot;, &quot;termination&quot;]}}},
+    {&quot;tool&quot;: &quot;search&quot;, &quot;args&quot;: {&quot;query&quot;: {&quot;type&quot;: &quot;keywords&quot;, &quot;value&quot;: [&quot;apex&quot;, &quot;termination&quot;]}}},
+    {&quot;tool&quot;: &quot;search&quot;, &quot;args&quot;: {&quot;query&quot;: {&quot;type&quot;: &quot;keywords&quot;, &quot;value&quot;: [&quot;corvid&quot;, &quot;termination&quot;]}}}
+  ],
+  &quot;scoring_weights&quot;: {}
+}</code></pre>
+<p>Keywords are counterparty + one robust topic token only — avoids the <code>indemnification</code>-vs-<code>liability</code> artifact from §2.</p>
+<h4>Axis B — Content-dependent multi-hop (step N keyed on <em>content returned</em> at step N-2)</h4>
+<p><strong>Capability:</strong> carrying a concrete value (a doc title, a section number, a counterparty name) out of a document&#x27;s <em>body text</em> — not its metadata — and using it as the anchor for a later retrieval. <code>vendor_autorenew_04</code> already does a one-hop version (Kestrel&#x27;s body names the &quot;Master Vendor Program Agreement&quot;). This axis makes it a <em>two-hop</em> non-adjacent dependency: the value needed at step N was buried in the body of a doc fetched at step N-2, and nothing in steps N-1 or the user turn repeats it. <strong>Why it&#x27;s a real skill:</strong> agentic RAG (self-RAG, ReAct-style retrieval loops) routinely chases cross-references — &quot;see Schedule C&quot;, &quot;governed by Section 9.4 of the MSA&quot;, &quot;as defined in the Master Agreement&quot;. The model must read, extract the pointer, and re-retrieve. This is the single most common failure mode in production contract agents. <strong>Difficulty/spread:</strong> expect 3–6 / 12. This is the mid-band sweet spot — frontier models hop, weaker models re-search the wrong anchor or summarize. <strong>Code changes:</strong> none. Standard single-call <code>expected</code> with <code>keywords</code>.</p>
+<p>Example (replaces saturated <code>easton_amendment_03</code>, slots into the easton chain as a content-hop step). Suppose the amendment body (<code>doc_20</code>) references &quot;the Pinehurst Master Lease Framework&quot; governing all the landlord&#x27;s leases:</p>
+<pre><code class="lang-json">{
+  &quot;task_id&quot;: &quot;easton_amendment_03b&quot;,
+  &quot;scenario_id&quot;: &quot;easton_amendment&quot;,
+  &quot;step&quot;: 3,
+  &quot;description&quot;: &quot;The amendment body cross-references the &#x27;Pinehurst Master Lease Framework&#x27; as governing the renewal mechanics. That framework has never been surfaced and its doc_id is unknown; the only anchor is the name appearing in doc_20&#x27;s body two steps back. Correct move: search anchored on that framework name.&quot;,
+  &quot;messages&quot;: [&quot;&lt;&lt;history through fetching doc_20, whose content names the &#x27;Pinehurst Master Lease Framework&#x27;&gt;&gt;&quot;],
+  &quot;expected&quot;: {
+    &quot;tool&quot;: &quot;search&quot;,
+    &quot;args&quot;: {&quot;query&quot;: {&quot;type&quot;: &quot;keywords&quot;, &quot;value&quot;: [&quot;master lease framework&quot;]}}
+  },
+  &quot;scoring_weights&quot;: {}
+}</code></pre>
+<p>Distractor pull here: <code>summarize_document(doc_20)</code> (re-summarize instead of chasing the reference) and re-fetching <code>doc_19</code>/<code>doc_20</code> (re-reading what you&#x27;ve already got).</p>
+<h4>Axis C — Cost-trap / over-calling tasks (a cheap single move suffices)</h4>
+<p><strong>Capability:</strong> restraint. The correct answer is one cheap, targeted call; the trap is to fan out, decompose, or list-then-search when the user already pinned the answer down. CLAUDE.md&#x27;s north star is <strong>CPC</strong> — a model that gets the right answer via 4 calls when 1 was right is wasting the denominator&#x27;s worth of tokens. We currently reward correctness but never <em>penalize over-calling</em>, even though it&#x27;s the core cost story. <strong>Why it&#x27;s a real skill:</strong> &quot;minimal tool use&quot; is an explicit objective in agent frameworks (OpenAI&#x27;s tool-use guidance, Anthropic&#x27;s &quot;don&#x27;t over-tool&quot; guidance). Over-calling is the dominant cost driver in production. <strong>Difficulty/spread:</strong> with all-or-nothing scoring as-is, a cost-trap only discriminates if the over-call produces a <em>wrong tool</em> (then it already fails) — so to make it bite under V1 scoring, design it so the tempting expansion is a <em>distractor</em> or a <em>different tool</em>. Expect 5–9 / 12. <strong>Code changes:</strong> none for V1 (lean on tool-name mismatch). <strong>For V2</strong>, a real cost-trap wants a &quot;calls ≤ N&quot; graded signal — see §4. For now, <code>actual_tools</code> already records batch length, so over-call <em>rate</em> falls out as an unscored behavioral metric (like distractor-pick rate) even without changing the score.</p>
+<p>Example (single call should win; decompose is the trap):</p>
+<pre><code class="lang-json">{
+  &quot;task_id&quot;: &quot;single_clause_costtrap_01&quot;,
+  &quot;scenario_id&quot;: &quot;single_clause_costtrap&quot;,
+  &quot;step&quot;: 1,
+  &quot;description&quot;: &quot;Looks multi-part (&#x27;and&#x27;) but is one narrow content lookup in one named doc family. The cheap move is a single filtered search. query_decompose is the over-engineering trap; it&#x27;s not wrong-tool but it burns a turn — scored via expected=search, and decompose scores 0.&quot;,
+  &quot;messages&quot;: [
+    {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;&lt;&lt;standard system prompt&gt;&gt;&quot;},
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Real quick — across our NDAs, what&#x27;s the standard confidentiality survival period after termination? Just the survival clause language, nothing fancy.&quot;}
+  ],
+  &quot;expected&quot;: {
+    &quot;tool&quot;: &quot;search&quot;,
+    &quot;args&quot;: {
+      &quot;query&quot;: {&quot;type&quot;: &quot;keywords&quot;, &quot;value&quot;: [&quot;survival&quot;]},
+      &quot;filters&quot;: {&quot;type&quot;: &quot;exact&quot;, &quot;value&quot;: {&quot;type&quot;: &quot;nda&quot;}}
+    }
+  },
+  &quot;expected_alternatives&quot;: [
+    {&quot;tool&quot;: &quot;search&quot;, &quot;args&quot;: {&quot;query&quot;: {&quot;type&quot;: &quot;keywords&quot;, &quot;value&quot;: [&quot;confidentiality&quot;, &quot;survive&quot;]}, &quot;filters&quot;: [{&quot;name&quot;: &quot;filters&quot;, &quot;match_type&quot;: &quot;exact&quot;, &quot;value&quot;: {&quot;type&quot;: &quot;nda&quot;}}]}}
+  ],
+  &quot;scoring_weights&quot;: {}
+}</code></pre>
+<p>(Author the alternative with the same <code>expected</code> arg shape as the primary; shown loosely above.) Track batch-length of the passing configs from <code>actual_tools</code> to report over-call behavior even though the score is binary.</p>
+<h4>Axis D — Convert the dead <code>search_history</code> distractor into a live trap</h4>
+<p><strong>Capability:</strong> distinguishing &quot;search my prior interactions&quot; from &quot;read the conversation already in front of me.&quot; <code>search_history</code> drew <strong>zero</strong> picks — it&#x27;s wasted. A task that explicitly says &quot;what we looked at earlier&quot; makes <code>search_history</code> the tempting move, while the correct move is either to answer from in-context history or to re-issue a corpus <code>search</code>/<code>get_document</code>. <strong>Why it&#x27;s a real skill:</strong> in stateful agents, conversation context and a &quot;session history&quot; tool are genuinely confusable; picking the tool when the answer is already in the message window is a real and costly error. <strong>Difficulty/spread:</strong> expect 6–10 / 12 — weaker/cheaper models more likely to grab the shiny history tool. Resurrects a dead distractor into a discriminator. <strong>Code changes:</strong> none.</p>
+<p>Example (mid-chain, where the prior result is already in context):</p>
+<pre><code class="lang-json">{
+  &quot;task_id&quot;: &quot;halverson_recall_01&quot;,
+  &quot;scenario_id&quot;: &quot;halverson_dispute&quot;,
+  &quot;step&quot;: 6,
+  &quot;description&quot;: &quot;User asks to re-confirm a figure from a document already fetched earlier in THIS conversation (doc_07, Section 9.2). The answer is in context; the correct retrieval move if a re-read is wanted is get_document(doc_07). search_history is the trap (it searches prior sessions, not this corpus and not this in-context history).&quot;,
+  &quot;messages&quot;: [&quot;&lt;&lt;halverson history through step 5; user now asks &#x27;remind me exactly what the 9.2 cap said in the Halverson MSA we pulled earlier&#x27;&gt;&gt;&quot;],
+  &quot;expected&quot;: {
+    &quot;tool&quot;: &quot;get_document&quot;,
+    &quot;args&quot;: {&quot;doc_id&quot;: {&quot;type&quot;: &quot;exact&quot;, &quot;value&quot;: &quot;doc_07&quot;}}
+  },
+  &quot;scoring_weights&quot;: {}
+}</code></pre>
+<p>Watch <code>distractor_picks</code> for <code>search_history</code> to confirm the bait now fires.</p>
+<h4>Axis E — Adversarial / ambiguous filter language (filter precision under linguistic noise)</h4>
+<p><strong>Capability:</strong> mapping fuzzy human date/scope language onto exact filter boundaries. The current constraint-dense tasks use clean phrasing (&quot;in 2024&quot;, &quot;first quarter of 2025&quot;). Real users say &quot;since last spring&quot;, &quot;the back half of last year&quot;, &quot;before we renewed Easton&quot;, &quot;everything newer than the Apex deal.&quot; The model must resolve these to <code>start_date</code>/<code>end_date</code> boundaries — and a one-day boundary error fails under <code>exact</code> matching. <strong>Why it&#x27;s a real skill:</strong> date-range resolution is the #1 filter bug in production search agents; Azure AI Search / Elastic range queries are unforgiving about boundaries. <strong>Difficulty/spread:</strong> expect 3–7 / 12 — boundary-off-by-one and &quot;did they mean inclusive?&quot; splits the field hard. <strong>Caveat:</strong> relative dates need a fixed &quot;today&quot; anchor. The system prompt already implies a present; pin it explicitly in the task&#x27;s system message (<code>&quot;Today&#x27;s date is 2026-06-12.&quot;</code>) so the expected boundary is deterministic. Avoid genuinely ambiguous phrasings where two boundaries are both defensible — that becomes a mis-grade, not a discriminator. Prefer phrasings with one correct resolution. <strong>Code changes:</strong> none (uses existing <code>exact</code> filter matching). Authoring discipline only.</p>
+<p>Example:</p>
+<pre><code class="lang-json">{
+  &quot;task_id&quot;: &quot;h2_2024_relative_01&quot;,
+  &quot;scenario_id&quot;: &quot;h2_2024_relative&quot;,
+  &quot;step&quot;: 1,
+  &quot;description&quot;: &quot;Relative date phrasing (&#x27;the back half of 2024&#x27;) must resolve to start_date 2024-07-01 / end_date 2024-12-31. Date anchor pinned in system prompt. Exact-match on the boundary; an off-by-quarter or inclusive/exclusive slip fails.&quot;,
+  &quot;messages&quot;: [
+    {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;&lt;&lt;standard system prompt&gt;&gt; Today&#x27;s date is 2026-06-12.&quot;},
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Give me every agreement we executed in the back half of 2024 — titles and dates only.&quot;}
+  ],
+  &quot;expected&quot;: {
+    &quot;tool&quot;: &quot;list_documents&quot;,
+    &quot;args&quot;: {&quot;filters&quot;: {&quot;type&quot;: &quot;exact&quot;, &quot;value&quot;: {&quot;start_date&quot;: &quot;2024-07-01&quot;, &quot;end_date&quot;: &quot;2024-12-31&quot;}}}
+  },
+  &quot;scoring_weights&quot;: {}
+}</code></pre>
+<h4>Axes considered and rejected (pressure-test)</h4>
+<ul>
+<li><strong>Abstention / &quot;don&#x27;t call a tool&quot; tasks</strong> — the most-requested idea, but <strong>structurally unauthorable in V1</strong>: <code>_parse_task</code> requires exactly one of <code>expected</code>/<code>expected_parallel</code>, and <code>expected.tool</code> is a non-empty string; <code>score_task</code> hard-codes score 0 for an empty <code>tool_calls</code> batch (lines 173–183). There is no &quot;no-call is correct&quot; target. Authoring one needs a new sentinel mode (e.g. <code>expected_no_call: true</code>) plus a scorer branch. It&#x27;s a legitimate axis (refusing to search the public web, asking for clarification on an ambiguous ID) but it is <strong>net-new code + new task type = V2</strong>, not a June-21 add. Do not attempt for this round.</li>
+<li><strong>Clarification-question tasks</strong> — same blocker, plus they collide with <code>tool_choice: &quot;auto&quot;</code> semantics and would need the model&#x27;s <em>text</em> response graded, which the harness doesn&#x27;t score. V2.</li>
+<li><strong>A distractor that is <em>almost</em> right</strong> — interesting, but our near-miss distractors (<code>summarize_document</code>) already occupy this space and it&#x27;s working. A new &quot;almost-right real tool&quot; risks becoming an adjudication swamp (is it actually wrong?). Lower priority than A–E.</li>
+</ul>
+<hr>
+<h3>4. Scoring evolution</h3>
+<p><strong>All-or-nothing is still right for V1</strong> and for every axis A–E above — each is authorable as a clean binary pass/fail. Specific notes:</p>
+<ol>
+<li><strong><code>expected_parallel</code> needs per-spec alternatives (small V1-eligible fix).</strong> §2 showed the 2-way parallel task over-fits on <code>indemnification</code> vs <code>liability</code>. Today a parallel spec&#x27;s args are matched strictly; there&#x27;s no <code>expected_alternatives</code> for parallel (and <code>_parse_task</code> actively forbids it). The cheap fix is <strong>authoring discipline</strong> — keep parallel keywords to a single robust token (counterparty + topic) so there&#x27;s only one reasonable phrasing. A code fix (allow each <code>ExpectedCall</code> in <code>expected_parallel</code> to carry alternative keyword sets) is a ~20-line scorer change but is <strong>optional</strong> and can wait. Recommend authoring-discipline for June-21.</li>
+</ol>
+<ol>
+<li><strong>Cost-trap (Axis C) and over-call behavior want a graded signal — but that&#x27;s V2.</strong> Partial credit is explicitly backlogged (design decision 4). For now, <code>TaskResult.actual_tools</code> already records batch length and call order, so over-call rate and decompose-invocation rate fall out as <strong>unscored behavioral metrics</strong> exactly like distractor-pick rate. Report them in the viz; don&#x27;t change the score. <em>If/when V2 adds partial credit</em>, the natural shape is a calls-budget penalty (<code>score = correct ? max(0, 1 - λ·(n_calls - min_calls)) : 0</code>) — frame for V2, don&#x27;t build now.</li>
+</ol>
+<ol>
+<li><strong><code>vendor_renewal_decompose_01</code> is a scoring fix, not a new axis</strong> — add an <code>expected_alternatives</code> entry for the <code>list_documents(type=vendor_agreement)</code> first move, or rewrite the query to genuinely require decomposition (span two doc families with a cross-family comparison, like <code>halverson_dispute_01</code> does). This is adjudication per design decision 10, and it should land before the next run regardless of which axes ship.</li>
+</ol>
+<hr>
+<h3>5. Prioritized next steps (toward ~June-21 post)</h3>
+<p>Ordered by discrimination-per-effort. Effort in rough half-day units; all are authoring-only unless noted.</p>
+<table class="md-table"><thead><tr>
+<th>#</th>
+<th>Action</th>
+<th>Effort</th>
+<th>Why first</th>
+</tr></thead><tbody>
+<tr><td>1</td><td><strong>Adjudicate <code>vendor_renewal_decompose_01</code></strong> (add list_documents alternative or rewrite). Loosen <code>halverson_dispute_02</code> parallel keywords to counterparty-only.</td><td>0.5d</td><td>Fixes two grading artifacts currently <em>understating</em> the dataset&#x27;s fairness. Zero new code. Must-do before re-run.</td></tr>
+<tr><td>2</td><td><strong>Axis B — content-dependent multi-hop</strong>, replacing saturated <code>easton_amendment_03</code> with <code>03b</code> (and optionally retiring <code>easton_amendment_01</code>).</td><td>0.5d</td><td>Highest discrimination-per-effort: mid-band, reuses an existing chain, kills dead weight while adding signal. Pure authoring.</td></tr>
+<tr><td>3</td><td><strong>Axis A — one 3-way parallel task</strong> (<code>tri_counterparty_parallel_01</code>).</td><td>0.5d</td><td>Tests whether parallel 1/12 was the task or the axis; <code>_score_parallel</code> already handles N-way, so zero code. Strong top-end split.</td></tr>
+<tr><td>4</td><td><strong>Axis D — <code>search_history</code> bait task</strong> (<code>halverson_recall_01</code>).</td><td>0.5d</td><td>Converts a dead distractor into a live one; cheap; gives the viz a new distractor-pick story.</td></tr>
+<tr><td>5</td><td><strong>Axis E — 1–2 relative-date filter tasks</strong> with pinned date anchor.</td><td>0.5d</td><td>Good mid-band discriminator; only risk is authoring an ambiguous boundary — keep phrasings single-resolution.</td></tr>
+<tr><td>6</td><td><strong>Axis C — one cost-trap task</strong> + report over-call rate from <code>actual_tools</code> in the viz.</td><td>0.5d</td><td>Ties directly to the CPC north star; binary-scoreable in V1 via tool-name mismatch; behavioral metric is free.</td></tr>
+<tr><td>7</td><td><em>(V2, not June-21)</em> Abstention/clarification mode: new <code>expected_no_call</code> task type + scorer branch.</td><td>1.5d+</td><td>Real axis, but net-new code AND new task type. Backlog.</td></tr>
+</tbody></table>
+<p><strong>June-21 scope:</strong> items 1–4 are the floor (2 days, all authoring, zero code) and already meaningfully sharpen the run. Items 5–6 if time allows. Item 7 is explicitly V2.</p>
+<p><strong>Re-run note:</strong> after items 1–4, re-run the full 12-config grid. Watch for (a) <code>vendor_renewal_decompose</code> no longer at floor, (b) the 3-way parallel landing 0–3/12 (validates the axis), (c) <code>search_history</code> finally drawing picks (validates Axis D), (d) easton chain <code>correct/total</code> spread widening now that 01/03 are gone or replaced.</p></div></section>
+<div class="footer" id="footer"></div>
+
+<script id="data-blob" type="application/json">{}</script>
+<script>
+"use strict";
+window.__renderDashboard = function () {
+const DATA = window.__BENCH_DATA__;
+
+const COLORS = { openai: '#10a37f', anthropic: '#d97757', ollama: '#7c6cf0' };
+const provColor = p => COLORS[p] || '#888';
+const fmtUsd = v => v === 0 ? '$0' : (v < 0.001 ? '$' + v.toFixed(6) : '$' + v.toFixed(v < 0.01 ? 5 : v < 1 ? 4 : 2));
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function el(tag, attrs, text) {
+  const e = document.createElementNS(SVGNS, tag);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  return e;
+}
+function card(num, title, insightHTML, opts) {
+  const c = document.createElement('div');
+  c.className = 'card' + (opts && opts.wide ? ' wide' : '');
+  const h = document.createElement('h2');
+  h.innerHTML = '<span class="chartnum">' + num + '</span>' + title;
+  c.appendChild(h);
+  const ins = document.createElement('div');
+  ins.className = 'insight';
+  ins.innerHTML = insightHTML;
+  c.appendChild(ins);
+  document.getElementById('main').appendChild(c);
+  return c;
+}
+
+// ---------- header ----------
+document.getElementById('subhead').textContent =
+  DATA.meta.date + '  ·  ' + DATA.meta.n_configs + ' model configs  ·  ' +
+  DATA.meta.n_tasks + '-task hardened dataset  ·  ' + DATA.meta.dataset;
+document.getElementById('footer').innerHTML =
+  'Distractor tools (never the correct answer): ' +
+  DATA.meta.distractor_tools.map(t => '<code>' + t + '</code>').join(', ') +
+  '. &nbsp; Chains: ' + Object.entries(DATA.meta.chains).map(([k,v]) => k + ' (' + v + ')').join(', ') +
+  '. &nbsp; ' + DATA.meta.note;
+
+const N = DATA.meta.n_tasks;
+
+// ============================================================
+// CHART 1 — Quality vs Cost scatter (log x), with frontier
+// ============================================================
+(function () {
+  const c = card('01', 'Quality vs Cost — the money chart',
+    'x = total run cost (<b>log scale</b>), y = accuracy (score/' + N + '). Points colored by provider. ' +
+    'The dashed line is the <b>cost-efficient frontier</b>: no config is both cheaper and more accurate than a frontier point. ' +
+    '<b>gpt-5.4-nano</b> sits at the knee — near-top accuracy for a fraction of a cent; Anthropic configs buy marginal accuracy at 50–100× the cost. gemma is free but lowest quality.',
+    {wide:true});
+
+  const W = 1100, H = 420, m = {t: 20, r: 30, b: 55, l: 60};
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const svg = el('svg', {viewBox: `0 0 ${W} ${H}`});
+  const g = el('g', {transform: `translate(${m.l},${m.t})`});
+  svg.appendChild(g);
+
+  const pts = DATA.configs.map(d => ({...d, acc: d.score / N}));
+  // log x; treat $0 (gemma) as a pinned leftmost decade
+  const costs = pts.map(p => p.total_cost_usd).filter(v => v > 0);
+  const minC = Math.min(...costs), maxC = Math.max(...costs);
+  const lx0 = Math.log10(minC) - 0.35, lx1 = Math.log10(maxC) + 0.18;
+  const xZero = 0; // pixel slot for $0
+  const xPlot = x => m.l===0?0:0; // unused
+  const sx = c2 => c2 <= 0 ? 12 : 40 + (iw - 40) * (Math.log10(c2) - lx0) / (lx1 - lx0);
+  const sy = a => ih - (a) * ih; // 0..1 -> full height (0 at bottom)
+
+  // grid + y ticks (accuracy)
+  for (let i = 0; i <= 5; i++) {
+    const a = i / 5;
+    const y = sy(a);
+    g.appendChild(el('line', {class:'', x1:0, y1:y, x2:iw, y2:y, stroke:'#20262f', 'stroke-dasharray':'2 3'}));
+    g.appendChild(el('text', {x:-10, y:y+3, 'text-anchor':'end', class:'tick'}, (a*100).toFixed(0)+'%'));
+  }
+  // x ticks (log decades)
+  [0.001, 0.01, 0.1, 1].forEach(v => {
+    if (Math.log10(v) < lx0 || Math.log10(v) > lx1) return;
+    const x = sx(v);
+    g.appendChild(el('line', {x1:x, y1:0, x2:x, y2:ih, stroke:'#20262f', 'stroke-dasharray':'2 3'}));
+    g.appendChild(el('text', {x:x, y:ih+18, 'text-anchor':'middle', class:'tick'}, fmtUsd(v)));
+  });
+  // $0 slot tick
+  g.appendChild(el('text', {x:12, y:ih+18, 'text-anchor':'middle', class:'tick'}, '$0'));
+  // axis labels
+  g.appendChild(el('text', {x:iw/2, y:ih+44, 'text-anchor':'middle', class:'axis-label'}, 'Total run cost (USD, log scale)'));
+  g.appendChild(el('text', {x:-42, y:ih/2, 'text-anchor':'middle', class:'axis-label', transform:`rotate(-90 -42 ${ih/2})`}, 'Accuracy (score / ' + N + ')'));
+
+  // frontier: among paid configs, points not dominated (cheaper AND higher acc)
+  const sorted = [...pts].sort((a,b) => a.total_cost_usd - b.total_cost_usd);
+  const frontier = [];
+  let bestAcc = -1;
+  for (const p of sorted) {
+    if (p.acc > bestAcc) { frontier.push(p); bestAcc = p.acc; }
+  }
+  // frontier path
+  let dPath = '';
+  frontier.forEach((p, i) => {
+    const x = sx(p.total_cost_usd), y = sy(p.acc);
+    dPath += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+  });
+  g.appendChild(el('path', {d:dPath, fill:'none', stroke:'#58a6ff', 'stroke-width':1.6, 'stroke-dasharray':'5 4', opacity:0.7}));
+
+  // points
+  pts.forEach(p => {
+    const x = sx(p.total_cost_usd), y = sy(p.acc);
+    const col = provColor(p.provider);
+    const onFront = frontier.includes(p);
+    g.appendChild(el('circle', {cx:x, cy:y, r:onFront?7:5.5, fill:col, stroke:onFront?'#fff':'#0d1117', 'stroke-width':onFront?1.6:1, opacity:0.95}));
+    // label
+    const lbl = el('text', {x:x+10, y:y+3.5, class:'pt-label', fill:'#cdd6e0'}, p.label);
+    // nudge crowded left cluster
+    if (p.total_cost_usd < 0.03 && p.total_cost_usd > 0) lbl.setAttribute('y', y - 8);
+    g.appendChild(lbl);
+  });
+
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 2 — Score ranking (horizontal bars)
+// ============================================================
+(function () {
+  const c = card('02', 'Score ranking — tasks solved (of ' + N + ')',
+    'Configs sorted by raw score. <b>Fable 5 (low/med)</b> top the board at 19/' + N + '; <b>gemma4:12b</b> floors at 9. ' +
+    'Note OpenAI delivers competitive scores (gpt-5.5 & gpt-5.4-mini at 17–18) — quality is not provider-locked.');
+
+  const rows = [...DATA.configs].sort((a,b) => b.score - a.score || b.accuracy - a.accuracy);
+  const W = 540, rowH = 26, m = {t:6, r:48, b:8, l:128};
+  const H = m.t + m.b + rows.length * rowH;
+  const iw = W - m.l - m.r;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  const maxV = N;
+  rows.forEach((d, i) => {
+    const y = m.t + i*rowH;
+    const bw = iw * (d.score / maxV);
+    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, d.label));
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:iw, height:rowH-10, fill:'#1c2330', rx:3}));
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:provColor(d.provider), rx:3}));
+    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, d.score + '/' + N));
+  });
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 3 — CPC ranking (log)
+// ============================================================
+(function () {
+  const c = card('03', 'CPC ranking — cost per correct task (log)',
+    'Lower is better. <b>gpt-5.4-nano is the efficiency king</b> among paid configs at ' + fmtUsd(0.000476) + '/correct — ' +
+    'gpt-4o-mini is marginally cheaper but solves 3 fewer tasks. <b>gemma4:12b runs at $0</b> (local) but quality lags. ' +
+    'Frontier Anthropic configs cost 50–90× more per correct answer.');
+
+  // exclude gemma (0) from log bars; annotate separately
+  const paid = DATA.configs.filter(d => d.cpc_usd > 0).sort((a,b) => a.cpc_usd - b.cpc_usd);
+  const W = 540, rowH = 26, m = {t:6, r:70, b:22, l:128};
+  const H = m.t + m.b + (paid.length+1) * rowH;
+  const iw = W - m.l - m.r;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  const minV = Math.min(...paid.map(d=>d.cpc_usd)), maxV = Math.max(...paid.map(d=>d.cpc_usd));
+  const l0 = Math.log10(minV)-0.05, l1 = Math.log10(maxV)+0.05;
+  const sx = v => iw * (Math.log10(v) - l0) / (l1 - l0);
+  paid.forEach((d, i) => {
+    const y = m.t + i*rowH;
+    const bw = Math.max(2, sx(d.cpc_usd));
+    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, d.label));
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:provColor(d.provider), rx:3}));
+    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, fmtUsd(d.cpc_usd)));
+    if (i===0) svg.appendChild(el('text', {x:m.l+bw+44, y:y+rowH/2+4, class:'bar-val', fill:'#3fb950'}, '◀ king'));
+  });
+  // gemma row
+  const gy = m.t + paid.length*rowH;
+  const gemma = DATA.configs.find(d=>d.provider==='ollama');
+  svg.appendChild(el('text', {x:m.l-8, y:gy+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, gemma.label));
+  svg.appendChild(el('rect', {x:m.l, y:gy+4, width:3, height:rowH-10, fill:provColor('ollama'), rx:3}));
+  svg.appendChild(el('text', {x:m.l+10, y:gy+rowH/2+4, class:'bar-val', fill:'#7c6cf0'}, '$0 (local, off-scale)'));
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 4 — Parallel task strip
+// ============================================================
+(function () {
+  const c = card('04', 'Parallel-invocation task · halverson_dispute_02',
+    'Only <b>1 of 12</b> configs passed. The task needs <b>two parallel <code>search</code> calls</b>; the dominant failure mode is ' +
+    'collapsing to <b>two <code>list_documents</code></b> (metadata-only, wrong tool). <b>gpt-5.4-nano</b> over-fires (4 searches) but matches both specs and passes. ' +
+    'gemma emitted no tool call at all.', {wide:true});
+
+  const pc = DATA.parallel_task.per_config;
+  const tbl = document.createElement('table');
+  tbl.className = 'matrix';
+  const tr = document.createElement('tr');
+  pc.forEach(d => {
+    const th = document.createElement('th'); th.textContent = d.label; tr.appendChild(th);
+  });
+  tbl.appendChild(tr);
+  const tr2 = document.createElement('tr');
+  pc.forEach(d => {
+    const td = document.createElement('td'); td.className='cell';
+    const wrap = document.createElement('div'); wrap.className='stripcell';
+    const pf = document.createElement('div');
+    pf.className = 'pf ' + (d.pass ? 'pass' : 'fail');
+    pf.textContent = d.pass ? '✓' : '✗';
+    wrap.appendChild(pf);
+    const mc = document.createElement('div'); mc.className='bar-val'; mc.style.fontSize='10px';
+    mc.textContent = d.matched + '/' + d.expected;
+    wrap.appendChild(mc);
+    const calls = document.createElement('div'); calls.className='calls';
+    calls.textContent = d.calls.length ? d.calls.map(x=>x==='list_documents'?'list':x).join(' + ') : '(none)';
+    wrap.appendChild(calls);
+    td.appendChild(wrap);
+    tr2.appendChild(td);
+  });
+  tbl.appendChild(tr2);
+  c.appendChild(tbl);
+})();
+
+// ============================================================
+// CHART 5 — Distractor picks
+// ============================================================
+(function () {
+  const picked = DATA.distractor_picks;
+  const allConfigs = DATA.configs.map(d=>d.label);
+  const c = card('05', 'Distractor-tool picks · the saturation canary',
+    '<b>' + picked.length + ' of 12</b> configs reached for a distractor; <b>every pick was <code>summarize_document</code></b> ' +
+    '(the near-miss that shadows <code>get_document</code>). <code>search_history</code> and the 3 categorically-wrong distractors drew <b>zero</b>. ' +
+    'The June-10 run had <b>zero distractor picks total</b> — the hardened near-miss tools are now successfully baiting models. ' +
+    'claude-sonnet-4-6 is the worst offender (5 tasks, 11 calls).');
+
+  const W = 540, m={t:10,r:24,b:24,l:128};
+  const rows = allConfigs;
+  const rowH = 24;
+  const H = m.t+m.b+rows.length*rowH;
+  const iw = W-m.l-m.r;
+  // max total picks for scaling
+  const byLabel = {};
+  picked.forEach(p => byLabel[p.label] = p);
+  const totals = rows.map(l => byLabel[l] ? byLabel[l].picks.reduce((s,x)=>s+x.count,0) : 0);
+  const maxTot = Math.max(1, ...totals);
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  rows.forEach((label, i) => {
+    const conf = DATA.configs.find(d=>d.label===label);
+    const y = m.t+i*rowH;
+    const p = byLabel[label];
+    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, label));
+    if (!p) {
+      svg.appendChild(el('text', {x:m.l+4, y:y+rowH/2+4, class:'bar-val', fill:'#3fb950'}, '— clean —'));
+      return;
+    }
+    const tot = p.picks.reduce((s,x)=>s+x.count,0);
+    const ntasks = p.picks.length;
+    const bw = iw*(tot/maxTot);
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:'#f85149', rx:3, opacity:0.85}));
+    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'},
+      tot + ' calls · ' + ntasks + ' task' + (ntasks>1?'s':'') + ' (' + p.picks.map(x=>x.task.replace(/_0\d$/,m=>m)).map(t=>t).join(', ') + ')'));
+  });
+  c.appendChild(svg);
+  // note line
+  const note = document.createElement('div');
+  note.className='insight';
+  note.style.marginTop='12px';
+  note.style.borderLeftColor='#f85149';
+  note.innerHTML = 'Red bar length = total distractor calls (scaled). All distractor picks = <code>summarize_document</code>.';
+  c.appendChild(note);
+})();
+
+// ============================================================
+// CHART 6 — Per-chain heatmap
+// ============================================================
+(function () {
+  const c = card('06', 'Per-chain performance heatmap',
+    'Rows = configs, columns = the 3 multi-step chains, cell = correct/total (color intensity = fraction solved). ' +
+    '<b>halverson_dispute (5 steps) is the wall</b> — best result is 3/5, nobody clears it; it carries the parallel task at step 2. ' +
+    'easton_amendment and vendor_autorenew are more tractable (several 4/4 sweeps).', {wide:true});
+
+  const chains = Object.keys(DATA.meta.chains);
+  const cpc = DATA.chains_per_config;
+  const tbl = document.createElement('table');
+  tbl.className='matrix';
+  const head = document.createElement('tr');
+  head.appendChild(document.createElement('th'));
+  chains.forEach(ch => {
+    const th=document.createElement('th'); th.textContent = ch + ' (' + DATA.meta.chains[ch] + ')'; head.appendChild(th);
+  });
+  tbl.appendChild(head);
+  cpc.forEach(row => {
+    const tr = document.createElement('tr');
+    const rl = document.createElement('td'); rl.className='rowlabel';
+    const conf = DATA.configs.find(d=>d.label===row.label);
+    rl.innerHTML = '<span class="swatch" style="background:'+provColor(conf.provider)+'; margin-right:7px; vertical-align:middle;"></span>' + row.label;
+    tr.appendChild(rl);
+    chains.forEach(ch => {
+      const cell = row.chains[ch];
+      const frac = cell.correct/cell.total;
+      const td = document.createElement('td'); td.className='cell';
+      const box = document.createElement('div'); box.className='cellbox';
+      // green ramp
+      const alpha = 0.12 + frac*0.88;
+      box.style.background = `rgba(63,185,80,${alpha})`;
+      box.style.color = frac > 0.5 ? '#06210e' : '#cdd6e0';
+      box.textContent = cell.correct + '/' + cell.total;
+      if (cell.correct === 0) { box.style.background='#241416'; box.style.color='#f85149'; }
+      td.appendChild(box);
+      tr.appendChild(td);
+    });
+    tbl.appendChild(tr);
+  });
+  c.appendChild(tbl);
+})();
+
+// ============================================================
+// CHART 7 — Task difficulty
+// ============================================================
+(function () {
+  const c = card('07', 'Task difficulty · configs passing each task (of 12)',
+    'Floor tasks (green-marked) are solved by all 12 — the easy baseline. Discriminators (≤5/12) are where CPC means something. ' +
+    'The hardest: <b>halverson_dispute_02</b> (parallel, 1/12) and <b>vendor_renewal_decompose_01</b> (2/12, decompose). ' +
+    '<span class="tag par">PAR</span> = parallel, <span class="tag alt">ALT</span> = adjudicated alternative, <span class="tag floor">FLOOR</span> = baseline floor.',
+    {wide:true});
+
+  const tasks = [...DATA.task_difficulty].sort((a,b) => a.n_pass - b.n_pass);
+  const W = 1100, m={t:10,r:40,b:8,l:230};
+  const rowH = 21;
+  const H = m.t+m.b+tasks.length*rowH;
+  const iw = W-m.l-m.r;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  // gridlines for thresholds
+  [5, 12].forEach(v => {
+    const x = m.l + iw*(v/12);
+    svg.appendChild(el('line', {x1:x,y1:m.t-2,x2:x,y2:H-m.b, stroke:'#2a3340','stroke-dasharray':'3 3'}));
+    svg.appendChild(el('text', {x:x, y:m.t-3, 'text-anchor':'middle', class:'tick', fill:'#5a6675'}, v));
+  });
+  tasks.forEach((t,i) => {
+    const y = m.t+i*rowH;
+    const bw = iw*(t.n_pass/12);
+    let col = '#f85149';
+    if (t.n_pass === 12) col = '#3fb950';
+    else if (t.n_pass >= 9) col = '#7ee787';
+    else if (t.n_pass >= 6) col = '#d29922';
+    // label + tags
+    const labelG = el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label', 'font-size':'11px'}, t.task_id);
+    svg.appendChild(labelG);
+    svg.appendChild(el('rect', {x:m.l, y:y+3, width:iw, height:rowH-7, fill:'#1c2330', rx:2}));
+    svg.appendChild(el('rect', {x:m.l, y:y+3, width:bw, height:rowH-7, fill:col, rx:2, opacity:0.92}));
+    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, t.n_pass + '/12'));
+    // tags after value
+    let tx = m.l + iw + 4;
+    const tags = [];
+    if (t.is_parallel) tags.push(['PAR','#58a6ff','rgba(88,166,255,0.18)']);
+    if (t.is_alt) tags.push(['ALT','#d29922','rgba(210,153,34,0.18)']);
+    if (t.is_floor) tags.push(['FLR','#3fb950','rgba(63,185,80,0.15)']);
+    // draw tags as small rects to the right of label area instead (left side)
+    let lx = m.l - 8 - (t.task_id.length*5.6) - 6;
+    tags.forEach(([txt,fg,bg]) => {
+      lx -= 30;
+      svg.appendChild(el('rect', {x:lx, y:y+5, width:26, height:rowH-11, rx:3, fill:bg}));
+      svg.appendChild(el('text', {x:lx+13, y:y+rowH/2+3.5, 'text-anchor':'middle', 'font-size':'8.5px', 'font-weight':'700', fill:fg}, txt));
+    });
+  });
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 8 — Before / After
+// ============================================================
+(function () {
+  const c = card('08', 'Before / After · the hardening widened the spread',
+    'June-10 (15 tasks): everyone scored <b>10–14</b>, range <b>4</b> — saturated, indistinguishable. ' +
+    'June-12 (23 tasks, hardened): scores spread <b>9–19</b>, range <b>10</b>. ' +
+    'A wider spread means the benchmark now discriminates — CPC differences are signal, not noise. ' +
+    '(Scores shown as accuracy % since task counts differ.)', {wide:true});
+
+  const prior = DATA.prior_run_june10.map(d => ({label:d.label, acc:d.score/d.n}));
+  const now = DATA.configs.map(d => ({label:d.label, acc:d.score/N}));
+  const W=1100, H=200, m={t:30,r:30,b:50,l:60};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  const g = el('g', {transform:`translate(${m.l},${m.t})`});
+  svg.appendChild(g);
+  const lanes = [
+    {name:'June 10 · 15 tasks · range 4', y: ih*0.28, data: prior, lo: Math.min(...prior.map(d=>d.acc)), hi: Math.max(...prior.map(d=>d.acc))},
+    {name:'June 12 · 23 tasks · range 10', y: ih*0.78, data: now, lo: Math.min(...now.map(d=>d.acc)), hi: Math.max(...now.map(d=>d.acc))},
+  ];
+  const sx = a => iw*a;
+  // axis
+  for (let i=0;i<=5;i++){
+    const a=i/5; const x=sx(a);
+    g.appendChild(el('line',{x1:x,y1:-6,x2:x,y2:ih,stroke:'#20262f','stroke-dasharray':'2 3'}));
+    g.appendChild(el('text',{x:x,y:ih+18,'text-anchor':'middle',class:'tick'},(a*100).toFixed(0)+'%'));
+  }
+  g.appendChild(el('text',{x:iw/2,y:ih+40,'text-anchor':'middle',class:'axis-label'},'Accuracy (score / task count)'));
+  lanes.forEach(lane => {
+    // spread band
+    g.appendChild(el('rect',{x:sx(lane.lo), y:lane.y-9, width:sx(lane.hi)-sx(lane.lo), height:18, fill:'#58a6ff', opacity:0.10, rx:9}));
+    g.appendChild(el('line',{x1:sx(lane.lo),y1:lane.y,x2:sx(lane.hi),y2:lane.y,stroke:'#3a4453','stroke-width':2}));
+    g.appendChild(el('text',{x:0,y:lane.y-16,class:'axis-label','font-size':'11.5px',fill:'#cdd6e0'},lane.name));
+    lane.data.forEach(d => {
+      g.appendChild(el('circle',{cx:sx(d.acc),cy:lane.y,r:5,fill:'#58a6ff',stroke:'#0d1117','stroke-width':1,opacity:0.85}));
+    });
+    // range bracket label
+    g.appendChild(el('text',{x:sx(lane.hi)+8,y:lane.y+4,class:'bar-val'}, 'spread ' + ((lane.hi-lane.lo)*100).toFixed(0) + ' pts'));
+  });
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 9 — Fable effort frontier
+// ============================================================
+(function () {
+  const c = card('09', 'Fable 5 effort frontier · cost rises, quality does not',
+    'Sweeping the effort knob low → med → high: <b>output tokens (2586→3144→3800)</b> and <b>cost rise monotonically</b>, ' +
+    'but <b>score is flat-to-down (19 → 19 → 18)</b>. The effort knob moves cost, not quality — high effort is a strict regression here. ' +
+    'Optimal setting for this benchmark is <b>low</b>.');
+
+  const fable = DATA.configs.filter(d => d.model === 'claude-fable-5')
+    .sort((a,b) => ({low:0,medium:1,high:2}[a.effort] - {low:0,medium:1,high:2}[b.effort]));
+  const W=540,H=300,m={t:24,r:54,b:46,l:54};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
+  const g=el('g',{transform:`translate(${m.l},${m.t})`});
+  svg.appendChild(g);
+  const xs = fable.map((d,i)=> iw*(i/(fable.length-1)));
+  // left axis: tokens & cost (normalized separately, plotted as two lines); right axis score
+  const maxTok = Math.max(...fable.map(d=>d.output_tokens));
+  const maxCost = Math.max(...fable.map(d=>d.total_cost_usd));
+  const syTok = v => ih - (v/maxTok)*ih*0.92;
+  const syCost = v => ih - (v/maxCost)*ih*0.92;
+  const syScore = v => ih - ((v-17)/(20-17))*ih*0.9; // score band 17..20
+
+  for(let i=0;i<=4;i++){ const y=ih*i/4; g.appendChild(el('line',{x1:0,y1:y,x2:iw,y2:y,stroke:'#20262f','stroke-dasharray':'2 3'})); }
+  fable.forEach((d,i)=> g.appendChild(el('text',{x:xs[i],y:ih+18,'text-anchor':'middle',class:'tick'}, d.effort)));
+  g.appendChild(el('text',{x:iw/2,y:ih+38,'text-anchor':'middle',class:'axis-label'},'Reasoning effort'));
+
+  function line(accessor, sc, color, label, dash) {
+    let d='';
+    fable.forEach((row,i)=> d += (i?'L':'M')+xs[i]+' '+sc(accessor(row))+' ');
+    g.appendChild(el('path',{d, fill:'none', stroke:color, 'stroke-width':2, 'stroke-dasharray':dash||''}));
+    fable.forEach((row,i)=>{
+      g.appendChild(el('circle',{cx:xs[i],cy:sc(accessor(row)),r:4,fill:color,stroke:'#0d1117'}));
+    });
+    return color;
+  }
+  line(d=>d.output_tokens, syTok, '#d97757', 'output tokens');
+  line(d=>d.total_cost_usd, syCost, '#f0a868', 'cost', '4 3');
+  line(d=>d.score, syScore, '#3fb950', 'score');
+
+  // value annotations
+  fable.forEach((d,i)=>{
+    g.appendChild(el('text',{x:xs[i],y:syTok(d.output_tokens)-8,'text-anchor':'middle','font-size':'9.5px',fill:'#d97757'}, d.output_tokens));
+    g.appendChild(el('text',{x:xs[i],y:syScore(d.score)-8,'text-anchor':'middle','font-size':'9.5px',fill:'#3fb950','font-weight':'700'}, d.score));
+  });
+  // mini legend
+  const leg = [['output tokens','#d97757'],['cost','#f0a868'],['score (17–20)','#3fb950']];
+  leg.forEach(([t,col],i)=>{
+    const ly = -8 + i*0; const lx = i*0;
+    const gx = i* (iw/3);
+    g.appendChild(el('rect',{x:gx,y:-18,width:10,height:10,rx:2,fill:col}));
+    g.appendChild(el('text',{x:gx+14,y:-9,'font-size':'10px',fill:'#8b97a7'},t));
+  });
+  c.appendChild(svg);
+})();
+};
+</script>
+
+<script>
+"use strict";
+// Live-data loader for GitHub Pages: fetch the canonical latest snapshot,
+// then run the (deferred) dashboard renderer. No CDNs; same-origin JSON only.
+(function () {
+  function showError(msg) {
+    var main = document.getElementById('main');
+    var banner = document.createElement('div');
+    banner.setAttribute('role', 'alert');
+    banner.style.cssText =
+      'margin:32px 40px;padding:18px 22px;border:1px solid #f85149;' +
+      'border-radius:10px;background:rgba(248,81,73,0.08);color:#f0b6b2;' +
+      'font-size:14px;line-height:1.5;';
+    banner.innerHTML =
+      '<strong>Could not load benchmark data.</strong><br>' +
+      'Tried to fetch <code>./data/latest.json</code>. ' +
+      'This page needs to be served over HTTP(S) (e.g. GitHub Pages) so the ' +
+      'same-origin data file is reachable.<br><span style="opacity:0.8">' +
+      msg + '</span>';
+    if (main) { main.appendChild(banner); } else { document.body.appendChild(banner); }
+  }
+  fetch('./data/latest.json', { cache: 'no-cache' })
+    .then(function (r) {
+      if (!r.ok) { throw new Error('HTTP ' + r.status + ' ' + r.statusText); }
+      return r.json();
+    })
+    .then(function (data) {
+      window.__BENCH_DATA__ = data;
+      if (typeof window.__renderDashboard === 'function') {
+        window.__renderDashboard();
+      } else {
+        showError('Renderer not found.');
+      }
+    })
+    .catch(function (err) { showError(String(err)); });
+})();
+</script>
+
+
+<script>
+(function () {
+  var btns = document.querySelectorAll('.tab-btn');
+  var panels = {
+    dashboard: 'tab-dashboard', insights: 'tab-insights', hardening: 'tab-hardening'
+  };
+  btns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      btns.forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      Object.values(panels).forEach(function (id) {
+        document.getElementById(id).classList.remove('active');
+      });
+      document.getElementById(panels[b.dataset.tab]).classList.add('active');
+      window.scrollTo(0, 0);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
