@@ -116,5 +116,6 @@ Key decisions and their rationale (don't relitigate — read first):
 
 ## What's next
 
-- Re-run the full 12-config benchmark on the hardened dataset
-- Visualization (quality vs cost scatter plot)
+- CPC-methodology blog post (canonical data: `viz/data/bench_data_2026-06-12-r2.json` + `viz/insights-2026-06-12-r2.md`)
+- Resolve the `vendor_renewal_decompose_01` keep-strict vs loosen adjudication with the rerun data in hand
+- V2 backlog: anchor-dependent relative-date tasks (Axis E follow-up), `expected_no_call` mode (Axis D redesign), partial credit
