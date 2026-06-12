@@ -18,7 +18,7 @@ DATASET_PATH = Path("data/tasks/search_agent_v1.json")
 EXPECTED_DISTRIBUTION = {
     "search": 9,
     "get_document": 6,
-    "list_documents": 5,
+    "list_documents": 6,
     "query_decompose": 2,
 }
 
@@ -34,8 +34,8 @@ def tasks() -> list[Task]:
     return load_tasks(DATASET_PATH)
 
 
-def test_loads_24_tasks(tasks: list[Task]) -> None:
-    assert len(tasks) == 24
+def test_loads_25_tasks(tasks: list[Task]) -> None:
+    assert len(tasks) == 25
 
 
 def test_expected_tools_are_real_tools(tasks: list[Task]) -> None:
