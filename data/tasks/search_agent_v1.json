@@ -33,7 +33,7 @@
       "task_id": "halverson_dispute_02",
       "scenario_id": "halverson_dispute",
       "step": 2,
-      "description": "Decomposition returned two independent retrieval sub-queries (the third is in-context comparison work). The correct move is BOTH searches in one parallel batch; issuing only one scores 0. Each spec requires (counterparty) AND (indemnification OR liability): the counterparty token (halverson / apex) plus at least one topic token, expressed via nested-OR keywords. The decompose response surfaces 'indemnification AND limitation of liability', so either topic synonym binds a leg, but a leg must still be on-topic — an off-topic counterparty-scoped search (pricing, termination) does not pass. This supersedes the interim counterparty-only relaxation, which let off-topic fan-outs through (adjudicated 2026-06-12).",
+      "description": "Decomposition returned two independent retrieval sub-queries (the third is in-context comparison work). The correct move is BOTH searches in one parallel batch; issuing only one scores 0. Each spec requires (counterparty) AND (indemnification OR liability): the counterparty token (halverson / apex) plus at least one topic token, expressed via nested-OR keywords. The decompose response surfaces 'indemnification AND limitation of liability', so either topic synonym binds a leg, but a leg must still be on-topic \u2014 an off-topic counterparty-scoped search (pricing, termination) does not pass. This supersedes the interim counterparty-only relaxation, which let off-topic fan-outs through (adjudicated 2026-06-12).",
       "messages": [
         {
           "role": "system",
@@ -1178,6 +1178,73 @@
           }
         }
       },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "tri_counterparty_parallel_01",
+      "scenario_id": "tri_counterparty_parallel",
+      "step": 1,
+      "description": "Three independent counterparty lookups requested explicitly in one turn; the correct move is three parallel search calls in a single batch, one per counterparty, matched injectively. Issuing fewer distinct searches, serializing, or exploring metadata first scores 0. Each spec requires (counterparty) AND (termination-topic token) via nested-OR keywords, per the halverson_dispute_02 adjudication of 2026-06-12: the 'terminat' stem / 'convenience' / 'cancel' group absorbs synonym phrasing without letting an off-topic counterparty-scoped fan-out pass.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have nine tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), query_decompose (break a complex request into sub-queries), web_search (search the public web for information outside the repository), tag_document (add or update tags on a repository document), create_alert (save a standing query that notifies the legal team when matching documents are added or amended), summarize_document (produce a generated summary of a document rather than its actual text), and search_history (search your own prior searches and document views, not the repository). Choose the most direct tool for each request, apply metadata filters when they narrow the work, issue independent lookups as parallel tool calls in a single turn, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Board prep and I'm short on time: pull the termination-for-convenience language from three agreements at once \u2014 the Halverson Logistics MSA, the Apex Components MSA, and the Corvid MSA. Fire all three lookups in parallel rather than one at a time; I want the clauses side by side."
+        }
+      ],
+      "expected_parallel": [
+        {
+          "tool": "search",
+          "args": {
+            "query": {
+              "type": "keywords",
+              "value": [
+                "halverson",
+                [
+                  "terminat",
+                  "convenience",
+                  "cancel"
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "tool": "search",
+          "args": {
+            "query": {
+              "type": "keywords",
+              "value": [
+                "apex",
+                [
+                  "terminat",
+                  "convenience",
+                  "cancel"
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "tool": "search",
+          "args": {
+            "query": {
+              "type": "keywords",
+              "value": [
+                "corvid",
+                [
+                  "terminat",
+                  "convenience",
+                  "cancel"
+                ]
+              ]
+            }
+          }
+        }
+      ],
       "scoring_weights": {}
     }
   ]

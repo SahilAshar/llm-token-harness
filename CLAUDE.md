@@ -12,7 +12,7 @@ A search agent evaluation harness that tests how well different LLMs pick the ri
 
 Single-turn eval: each task is one prompt → one expected tool call. Multi-step chains share a `scenario_id` and build real conversation history (not text summaries). The corpus is simulated — tool responses are hardcoded JSON. We're measuring the MODEL's search reasoning, isolated from retrieval infrastructure.
 
-Current dataset: `data/tasks/search_agent_v1.json` — 23 tasks over a simulated contract repository: 3 chains (5, 4, and 4 steps) with non-adjacent state dependencies, 1 parallel-invocation task, 3 constraint-dense filter tasks, and a 6-task easy baseline floor. The full pipeline (runner, CPC computation, CLI) is shipped; run it via `make eval`.
+Current dataset: `data/tasks/search_agent_v1.json` — 24 tasks over a simulated contract repository: 3 chains (5, 4, and 4 steps) with non-adjacent state dependencies, 2 parallel-invocation tasks, 3 constraint-dense filter tasks, and a 6-task easy baseline floor. The full pipeline (runner, CPC computation, CLI) is shipped; run it via `make eval`.
 
 ### Key modules
 
