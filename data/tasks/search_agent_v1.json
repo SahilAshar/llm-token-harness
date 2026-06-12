@@ -74,7 +74,29 @@
                 ]
               ]
             }
-          }
+          },
+          "alternatives": [
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "indemnification",
+                      "liability"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Halverson Logistics"
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "tool": "search",
@@ -89,7 +111,50 @@
                 ]
               ]
             }
-          }
+          },
+          "alternatives": [
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "indemnification",
+                      "liability"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Apex Components"
+                  }
+                }
+              }
+            },
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "indemnification",
+                      "liability"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Apex Components",
+                    "type": "msa"
+                  }
+                }
+              }
+            }
+          ]
         }
       ],
       "scoring_weights": {}
@@ -1184,7 +1249,7 @@
       "task_id": "tri_counterparty_parallel_01",
       "scenario_id": "tri_counterparty_parallel",
       "step": 1,
-      "description": "Three independent counterparty lookups requested explicitly in one turn; the correct move is three parallel search calls in a single batch, one per counterparty, matched injectively. Issuing fewer distinct searches, serializing, or exploring metadata first scores 0. Each spec requires (counterparty) AND (termination-topic token) via nested-OR keywords, per the halverson_dispute_02 adjudication of 2026-06-12: the 'terminat' stem / 'convenience' / 'cancel' group absorbs synonym phrasing without letting an off-topic counterparty-scoped fan-out pass.",
+      "description": "Three independent counterparty lookups requested explicitly in one turn; the correct move is three parallel search calls in a single batch, one per counterparty, matched injectively. Issuing fewer distinct searches, serializing, or exploring metadata first scores 0. Each spec requires (counterparty) AND (termination-topic token) via nested-OR keywords, per the halverson_dispute_02 adjudication of 2026-06-12: the 'terminat' stem / 'convenience' / 'cancel' group absorbs synonym phrasing without letting an off-topic counterparty-scoped fan-out pass. Per-spec alternatives credit the counterparty scoped via a metadata filter with a topical query; credited filter values are the verbatim in-context entity names from the user turn ('Corvid' is never canonicalized anywhere in the corpus, so the user's name is the only non-fabricated value), and fabricated expansions stay uncredited.",
       "messages": [
         {
           "role": "system",
@@ -1210,7 +1275,52 @@
                 ]
               ]
             }
-          }
+          },
+          "alternatives": [
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "terminat",
+                      "convenience",
+                      "cancel"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Halverson Logistics"
+                  }
+                }
+              }
+            },
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "terminat",
+                      "convenience",
+                      "cancel"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Halverson Logistics",
+                    "type": "msa"
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "tool": "search",
@@ -1226,7 +1336,52 @@
                 ]
               ]
             }
-          }
+          },
+          "alternatives": [
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "terminat",
+                      "convenience",
+                      "cancel"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Apex Components"
+                  }
+                }
+              }
+            },
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "terminat",
+                      "convenience",
+                      "cancel"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Apex Components",
+                    "type": "msa"
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "tool": "search",
@@ -1242,7 +1397,52 @@
                 ]
               ]
             }
-          }
+          },
+          "alternatives": [
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "terminat",
+                      "convenience",
+                      "cancel"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Corvid"
+                  }
+                }
+              }
+            },
+            {
+              "tool": "search",
+              "args": {
+                "query": {
+                  "type": "keywords",
+                  "value": [
+                    [
+                      "terminat",
+                      "convenience",
+                      "cancel"
+                    ]
+                  ]
+                },
+                "filters": {
+                  "type": "exact",
+                  "value": {
+                    "counterparty": "Corvid",
+                    "type": "msa"
+                  }
+                }
+              }
+            }
+          ]
         }
       ],
       "scoring_weights": {}

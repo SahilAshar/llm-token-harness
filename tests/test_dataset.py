@@ -76,6 +76,21 @@ def test_parallel_tasks(tasks: list[Task]) -> None:
         "search",
         "search",
     ]
+    # Every parallel spec carries adjudicated filter-scoped alternatives
+    # (counterparty via metadata filter + topical query); each alternative
+    # is itself a search call with both query and filters constrained.
+    assert [len(s.alternatives) for s in parallel["halverson_dispute_02"]] == [1, 2]
+    assert [len(s.alternatives) for s in parallel["tri_counterparty_parallel_01"]] == [
+        2,
+        2,
+        2,
+    ]
+    for specs in parallel.values():
+        for spec in specs:
+            for alt in spec.alternatives:
+                assert alt.tool == "search"
+                assert {a.name for a in alt.args} == {"query", "filters"}
+                assert alt.alternatives == []
 
 
 def test_chain_lengths(tasks: list[Task]) -> None:
@@ -128,3 +143,133 @@ def test_tool_message_contents_are_json(tasks: list[Task]) -> None:
         for msg in task.messages:
             if msg["role"] == "tool":
                 json.loads(msg["content"])
+
+
+def _calls(*specs: tuple[str, dict]) -> list:
+    from src.adapters.base import ToolCall
+
+    return [ToolCall(name=n, arguments=a) for n, a in specs]
+
+
+class TestParallelAlternativesAgainstDataset:
+    """Regressions for the June-12 adjudication, run against the real
+    loaded dataset: observed filter-scoped fan-outs that the per-spec
+    alternatives exist to credit, and near-misses that must stay 0."""
+
+    @pytest.fixture()
+    def by_id(self, tasks: list[Task]) -> dict[str, Task]:
+        return {t.task_id: t for t in tasks}
+
+    def test_observed_haiku_dispute_fanout_credited(self, by_id) -> None:
+        from src.scorer import score_task
+
+        result = score_task(
+            by_id["halverson_dispute_02"],
+            _calls(
+                (
+                    "search",
+                    {
+                        "query": "indemnification liability caps",
+                        "filters": {"counterparty": "Halverson Logistics"},
+                        "top_k": 10,
+                    },
+                ),
+                (
+                    "search",
+                    {
+                        "query": "indemnification liability caps",
+                        "filters": {"counterparty": "Apex Components"},
+                        "top_k": 10,
+                    },
+                ),
+            ),
+        )
+        assert result.score == 1
+
+    def test_observed_haiku_tri_fanout_credited(self, by_id) -> None:
+        from src.scorer import score_task
+
+        calls = _calls(
+            *(
+                (
+                    "search",
+                    {
+                        "query": "termination for convenience clause",
+                        "filters": {"counterparty": name, "type": "msa"},
+                        "top_k": 1,
+                    },
+                )
+                for name in ("Halverson Logistics", "Apex Components", "Corvid")
+            )
+        )
+        assert score_task(by_id["tri_counterparty_parallel_01"], calls).score == 1
+
+    def test_truncated_counterparty_value_rejected(self, by_id) -> None:
+        from src.scorer import score_task
+
+        result = score_task(
+            by_id["halverson_dispute_02"],
+            _calls(
+                (
+                    "search",
+                    {
+                        "query": "indemnification",
+                        "filters": {"counterparty": "Halverson"},
+                    },
+                ),
+                (
+                    "search",
+                    {
+                        "query": "indemnification",
+                        "filters": {"counterparty": "Apex Components"},
+                    },
+                ),
+            ),
+        )
+        assert result.score == 0
+
+    def test_extra_filter_key_rejected(self, by_id) -> None:
+        from src.scorer import score_task
+
+        result = score_task(
+            by_id["halverson_dispute_02"],
+            _calls(
+                (
+                    "search",
+                    {
+                        "query": "indemnification",
+                        "filters": {
+                            "counterparty": "Halverson Logistics",
+                            "start_date": "2024-01-01",
+                        },
+                    },
+                ),
+                (
+                    "search",
+                    {
+                        "query": "indemnification",
+                        "filters": {"counterparty": "Apex Components"},
+                    },
+                ),
+            ),
+        )
+        assert result.score == 0
+
+    def test_two_calls_on_tri_rejected(self, by_id) -> None:
+        from src.scorer import score_task
+
+        calls = _calls(
+            *(
+                (
+                    "search",
+                    {
+                        "query": "termination for convenience",
+                        "filters": {"counterparty": name},
+                    },
+                )
+                for name in ("Halverson Logistics", "Apex Components")
+            )
+        )
+        result = score_task(by_id["tri_counterparty_parallel_01"], calls)
+        assert result.score == 0
+        assert result.parallel_matched == 2

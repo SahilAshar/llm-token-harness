@@ -881,3 +881,179 @@ class TestExpectedParallelNestedOr:
         assert result.score == 0
         assert result.parallel_matched == 0
         assert result.parallel_failed_specs == ["0:search", "1:search"]
+
+
+class TestParallelPerSpecAlternatives:
+    # Mirrors the adjudicated filter-scoped fan-out: the counterparty
+    # may live in the query (primary) or in a metadata filter with a
+    # topical query (alternative). Title-guess filters stay uncredited.
+    _SPECS = [
+        ExpectedCall(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["halverson", ["indemnification", "liability"]],
+                ),
+            ],
+            alternatives=[
+                ExpectedCall(
+                    tool="search",
+                    args=[
+                        ExpectedArg(
+                            name="query",
+                            match_type=ArgMatchType.KEYWORDS,
+                            value=[["indemnification", "liability"]],
+                        ),
+                        ExpectedArg(
+                            name="filters",
+                            match_type=ArgMatchType.EXACT,
+                            value={"counterparty": "Halverson Logistics"},
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        ExpectedCall(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["apex", ["indemnification", "liability"]],
+                ),
+            ],
+            alternatives=[
+                ExpectedCall(
+                    tool="search",
+                    args=[
+                        ExpectedArg(
+                            name="query",
+                            match_type=ArgMatchType.KEYWORDS,
+                            value=[["indemnification", "liability"]],
+                        ),
+                        ExpectedArg(
+                            name="filters",
+                            match_type=ArgMatchType.EXACT,
+                            value={"counterparty": "Apex Components"},
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ]
+
+    def test_filter_scoped_fanout_satisfies_specs(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "indemnification liability caps",
+                        "filters": {"counterparty": "Halverson Logistics"},
+                        "top_k": 10,
+                    },
+                ),
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "limitation of liability",
+                        "filters": {"counterparty": "Apex Components"},
+                    },
+                ),
+            ],
+        )
+        assert result.score == 1
+        assert result.parallel_matched == 2
+
+    def test_mixed_primary_and_alternative_legs(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={"query": "halverson indemnification clauses"},
+                ),
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "liability provisions",
+                        "filters": {"counterparty": "Apex Components"},
+                    },
+                ),
+            ],
+        )
+        assert result.score == 1
+
+    def test_title_guess_filter_not_credited(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "indemnification",
+                        "filters": {"title": "Halverson Logistics MSA"},
+                    },
+                ),
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "indemnification",
+                        "filters": {"title": "Apex Components MSA"},
+                    },
+                ),
+            ],
+        )
+        assert result.score == 0
+        assert result.parallel_matched == 0
+
+    def test_off_topic_filter_scoped_fanout_rejected(self) -> None:
+        # The alternative still demands the topic in the query: a
+        # correctly filter-scoped but off-topic fan-out scores 0.
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "pricing tiers",
+                        "filters": {"counterparty": "Halverson Logistics"},
+                    },
+                ),
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "termination notice",
+                        "filters": {"counterparty": "Apex Components"},
+                    },
+                ),
+            ],
+        )
+        assert result.score == 0
+
+    def test_one_call_cannot_satisfy_two_specs_via_alternatives(self) -> None:
+        # Injective matching survives alternatives: a single call that
+        # matches spec 0's primary and would also match spec 1's
+        # alternative binds to only one spec.
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={
+                        "query": "halverson apex indemnification",
+                        "filters": {"counterparty": "Apex Components"},
+                    },
+                ),
+            ],
+        )
+        assert result.score == 0
+        assert result.parallel_matched == 1

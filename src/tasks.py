@@ -34,6 +34,10 @@ class ExpectedArg(BaseModel, frozen=True):
 class ExpectedCall(BaseModel, frozen=True):
     tool: str
     args: list[ExpectedArg]
+    # Adjudicated equally-correct variants of THIS spec (parallel-task
+    # specs only): a call matching the primary or any alternative
+    # satisfies the spec. Depth 1 — alternatives cannot nest.
+    alternatives: list[ExpectedCall] = []
 
 
 class Task(BaseModel, frozen=True):
@@ -64,10 +68,19 @@ def _parse_expected_args(raw: dict[str, Any]) -> list[ExpectedArg]:
     ]
 
 
-def _parse_expected_call(raw: dict[str, Any]) -> ExpectedCall:
+def _parse_expected_call(
+    raw: dict[str, Any], task_id: str, *, allow_alternatives: bool = False
+) -> ExpectedCall:
+    alternatives_raw = raw.get("alternatives", [])
+    if alternatives_raw and not allow_alternatives:
+        raise ValueError(
+            f"task {task_id}: per-spec 'alternatives' only applies to"
+            " 'expected_parallel' specs and cannot nest"
+        )
     return ExpectedCall(
         tool=raw["tool"],
         args=_parse_expected_args(raw.get("args", {})),
+        alternatives=[_parse_expected_call(alt, task_id) for alt in alternatives_raw],
     )
 
 
@@ -85,6 +98,11 @@ def _parse_task(raw: dict[str, Any]) -> Task:
     expected_args: list[ExpectedArg] = []
     expected_parallel: list[ExpectedCall] | None = None
     if has_expected:
+        if "alternatives" in raw["expected"]:
+            raise ValueError(
+                f"task {task_id}: 'alternatives' inside 'expected' is not"
+                " supported — use the task-level 'expected_alternatives'"
+            )
         expected_tool = raw["expected"]["tool"]
         expected_args = _parse_expected_args(raw["expected"].get("args", {}))
     else:
@@ -94,7 +112,8 @@ def _parse_task(raw: dict[str, Any]) -> Task:
                 " to single-call tasks, not 'expected_parallel'"
             )
         expected_parallel = [
-            _parse_expected_call(spec) for spec in raw["expected_parallel"]
+            _parse_expected_call(spec, task_id, allow_alternatives=True)
+            for spec in raw["expected_parallel"]
         ]
         if len(expected_parallel) < 2:
             raise ValueError(
@@ -111,7 +130,8 @@ def _parse_task(raw: dict[str, Any]) -> Task:
         expected_tool=expected_tool,
         expected_args=expected_args,
         expected_alternatives=[
-            _parse_expected_call(alt) for alt in raw.get("expected_alternatives", [])
+            _parse_expected_call(alt, task_id)
+            for alt in raw.get("expected_alternatives", [])
         ],
         expected_parallel=expected_parallel,
         scoring_weights=raw.get("scoring_weights", {}),

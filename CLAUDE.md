@@ -54,6 +54,7 @@ These are from the original math/sentiment harness and are excluded in `pyprojec
 - **Two arg match types:** `exact` (doc_id, top_k, filters — case-insensitive, type-coerced, dict key-order and list order insensitive) and `keywords` (query — all keywords must appear in model's value)
 - **Adjudicated alternatives:** tasks may carry an optional `expected_alternatives` list of equally-correct strategies; a full match against the primary expected spec OR any alternative scores 1. No partial credit across alternatives; failure reporting stays anchored to the primary spec
 - **Parallel mode:** a task has exactly one of `expected` (single call, optional alternatives) or `expected_parallel` (2+ specs that must ALL be matched by calls in one batch — any-call-per-spec, all-specs-required). `TaskResult.parallel_matched`/`parallel_expected`/`parallel_failed_specs` record per-spec results; the score stays all-or-nothing
+- **Per-spec parallel alternatives:** each `expected_parallel` spec may carry an `alternatives` list (adjudicated equally-correct variants of that one spec, e.g. counterparty scoped via a metadata filter with a topical query instead of a counterparty token in the query string). A call matching the spec's primary or any alternative satisfies it; alternatives cannot nest. Added after the June-12 rerun showed correct filter-scoped fan-outs scoring 0 on both parallel tasks
 - `tool_choice: "auto"` — models must decide WHETHER to use tools
 
 ## Code conventions
