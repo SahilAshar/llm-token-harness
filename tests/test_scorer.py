@@ -733,3 +733,48 @@ class TestExpectedParallel:
         assert result.parallel_expected is None
         assert result.parallel_matched is None
         assert result.parallel_failed_specs is None
+
+    def test_counterparty_only_specs_accept_synonym_phrasing(self) -> None:
+        # Adjudication 2026-06-12: halverson_dispute_02 keys each spec on
+        # the counterparty token only. A correct parallel fan-out that
+        # phrases one leg around "limitation of liability" (a synonym the
+        # decompose response surfaced) instead of "indemnification" must
+        # still bind both specs.
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={"query": "halverson limitation of liability caps"},
+                ),
+                ToolCall(
+                    name="search",
+                    arguments={"query": "apex indemnification provisions"},
+                ),
+            ],
+        )
+        assert result.score == 1
+        assert result.parallel_matched == 2
+
+    def test_counterparty_only_specs_reject_non_parallelizer(self) -> None:
+        # The relaxed keywords must NOT rescue a config that explored
+        # metadata instead of retrieving passages: two list_documents
+        # calls are not two searches, so neither search spec can bind.
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="list_documents",
+                    arguments={"filters": {"counterparty": "Halverson Logistics"}},
+                ),
+                ToolCall(
+                    name="list_documents",
+                    arguments={"filters": {"counterparty": "Apex Components"}},
+                ),
+            ],
+        )
+        assert result.score == 0
+        assert result.parallel_matched == 0
+        assert result.parallel_failed_specs == ["0:search", "1:search"]
