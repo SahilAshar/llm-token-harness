@@ -461,68 +461,10 @@
       "scoring_weights": {}
     },
     {
-      "task_id": "easton_amendment_03",
+      "task_id": "easton_amendment_03b",
       "scenario_id": "easton_amendment",
       "step": 3,
-      "description": "Amendment located but the search snippet shows recitals only; the user asked exactly what changed, so fetch the full amendment. The doc_id (doc_20) is only knowable from the search result in history, not the user turn \u2014 the harder fetch case.",
-      "messages": [
-        {
-          "role": "system",
-          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have nine tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), query_decompose (break a complex request into sub-queries), web_search (search the public web for information outside the repository), tag_document (add or update tags on a repository document), create_alert (save a standing query that notifies the legal team when matching documents are added or amended), summarize_document (produce a generated summary of a document rather than its actual text), and search_history (search your own prior searches and document views, not the repository). Choose the most direct tool for each request, apply metadata filters when they narrow the work, issue independent lookups as parallel tool calls in a single turn, and answer directly once you have what you need."
-        },
-        {
-          "role": "user",
-          "content": "Pull up doc_19, the Easton warehouse lease. I remember we signed an amendment last year when we expanded into the adjacent bay \u2014 find it, and then walk me through exactly how it changed the lease term and our renewal options. Last thing: list every other agreement we have with the same landlord \u2014 titles and effective dates are enough."
-        },
-        {
-          "role": "assistant",
-          "content": null,
-          "tool_calls": [
-            {
-              "name": "get_document",
-              "arguments": {
-                "doc_id": "doc_19"
-              }
-            }
-          ]
-        },
-        {
-          "role": "tool",
-          "content": "{\"doc_id\": \"doc_19\", \"title\": \"Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"author\": \"D. Okafor\", \"date\": \"2024-06-15\", \"content\": \"Premises: Bays 4-5, Easton Distribution Center, 88,000 sq ft. Initial term: five (5) years, expiring 2029-06-14. Renewal: one (1) three-year option, exercisable upon twelve (12) months' prior written notice. Base rent: $7.90 per sq ft per year, 3% annual escalator. Permitted use: warehousing and distribution. Assignment requires landlord consent...\"}"
-        },
-        {
-          "role": "assistant",
-          "content": null,
-          "tool_calls": [
-            {
-              "name": "search",
-              "arguments": {
-                "query": "Easton warehouse lease amendment expansion adjacent bay"
-              }
-            }
-          ]
-        },
-        {
-          "role": "tool",
-          "content": "{\"results\": [{\"doc_id\": \"doc_20\", \"title\": \"First Amendment to Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"date\": \"2025-08-04\", \"score\": 0.95, \"passage\": \"RECITALS: WHEREAS the parties desire to expand the Premises to include Bay 6 of the Easton Distribution Center and to modify the term and renewal provisions of the Lease as set forth herein...\"}]}"
-        }
-      ],
-      "expected": {
-        "tool": "get_document",
-        "args": {
-          "doc_id": {
-            "type": "exact",
-            "value": "doc_20"
-          }
-        }
-      },
-      "scoring_weights": {}
-    },
-    {
-      "task_id": "easton_amendment_04",
-      "scenario_id": "easton_amendment",
-      "step": 4,
-      "description": "Inventory request scoped by an entity the user never named: 'the same landlord' resolves to Pinehurst Realty Group only via the step-1 response metadata, three steps back.",
+      "description": "Content-dependent hop: the amendment's renewal section defers entirely to the 'Pinehurst Master Lease Framework', a document never surfaced in any result. No doc_id for it exists anywhere in history and its name appears only in doc_20's body text. The user asked exactly how the renewal options changed, so the framework must be retrieved \u2014 search anchored on the framework's name. Distractor pull: summarize_document(doc_20), re-fetching doc_19/doc_20, or jumping to the landlord listing with the renewal question unanswered.",
       "messages": [
         {
           "role": "system",
@@ -578,7 +520,99 @@
         },
         {
           "role": "tool",
-          "content": "{\"doc_id\": \"doc_20\", \"title\": \"First Amendment to Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"author\": \"D. Okafor\", \"date\": \"2025-08-04\", \"content\": \"1. Premises: expanded to include Bay 6 (32,000 sq ft), total 120,000 sq ft. 2. Term: extended through 2031-06-14. 3. Renewal: the single three-year option is replaced with two (2) successive two-year options, each exercisable upon eighteen (18) months' prior written notice. 4. Base rent: $8.15 per sq ft per year on the expanded premises, escalator unchanged. All other terms of the Lease remain in full force...\"}"
+          "content": "{\"doc_id\": \"doc_20\", \"title\": \"First Amendment to Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"author\": \"D. Okafor\", \"date\": \"2025-08-04\", \"content\": \"1. Premises: expanded to include Bay 6 (32,000 sq ft), total 120,000 sq ft. 2. Term: extended through 2031-06-14. 3. Renewal: the renewal provisions of the Lease are deleted in their entirety; renewal options, exercise windows, and notice mechanics for the expanded Premises are instead governed by the Pinehurst Master Lease Framework, which Landlord maintains across its tenant leases and which is incorporated herein by reference. 4. Base rent: $8.15 per sq ft per year on the expanded premises, escalator unchanged. All other terms of the Lease remain in full force...\"}"
+        }
+      ],
+      "expected": {
+        "tool": "search",
+        "args": {
+          "query": {
+            "type": "keywords",
+            "value": [
+              "master lease framework"
+            ]
+          }
+        }
+      },
+      "scoring_weights": {}
+    },
+    {
+      "task_id": "easton_amendment_04",
+      "scenario_id": "easton_amendment",
+      "step": 4,
+      "description": "Inventory request scoped by an entity the user never named: 'the same landlord' resolves to Pinehurst Realty Group only via tool-response metadata from earlier steps, never the user turn.",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the contract-intelligence agent for the legal team at Meridian Supply Co., a mid-size industrial distribution company. You answer questions over the company's contract repository of roughly two dozen executed agreements: NDAs, master services agreements (MSAs), statements of work (SOWs), employment agreements, real-estate leases, and vendor agreements. Every document has metadata: doc_id, title, type (one of: nda, msa, sow, employment_agreement, lease, vendor_agreement), counterparty, author, date (effective date, YYYY-MM-DD), and tags. You have nine tools: search (semantic search over passages, with optional metadata filters and start_date/end_date date ranges), get_document (fetch a full document by doc_id), list_documents (metadata-only listing with optional filters), query_decompose (break a complex request into sub-queries), web_search (search the public web for information outside the repository), tag_document (add or update tags on a repository document), create_alert (save a standing query that notifies the legal team when matching documents are added or amended), summarize_document (produce a generated summary of a document rather than its actual text), and search_history (search your own prior searches and document views, not the repository). Choose the most direct tool for each request, apply metadata filters when they narrow the work, issue independent lookups as parallel tool calls in a single turn, and answer directly once you have what you need."
+        },
+        {
+          "role": "user",
+          "content": "Pull up doc_19, the Easton warehouse lease. I remember we signed an amendment last year when we expanded into the adjacent bay \u2014 find it, and then walk me through exactly how it changed the lease term and our renewal options. Last thing: list every other agreement we have with the same landlord \u2014 titles and effective dates are enough."
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "get_document",
+              "arguments": {
+                "doc_id": "doc_19"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"doc_id\": \"doc_19\", \"title\": \"Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"author\": \"D. Okafor\", \"date\": \"2024-06-15\", \"content\": \"Premises: Bays 4-5, Easton Distribution Center, 88,000 sq ft. Initial term: five (5) years, expiring 2029-06-14. Renewal: one (1) three-year option, exercisable upon twelve (12) months' prior written notice. Base rent: $7.90 per sq ft per year, 3% annual escalator. Permitted use: warehousing and distribution. Assignment requires landlord consent...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "search",
+              "arguments": {
+                "query": "Easton warehouse lease amendment expansion adjacent bay"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"results\": [{\"doc_id\": \"doc_20\", \"title\": \"First Amendment to Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"date\": \"2025-08-04\", \"score\": 0.95, \"passage\": \"RECITALS: WHEREAS the parties desire to expand the Premises to include Bay 6 of the Easton Distribution Center and to modify the term and renewal provisions of the Lease as set forth herein...\"}]}"
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "get_document",
+              "arguments": {
+                "doc_id": "doc_20"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"doc_id\": \"doc_20\", \"title\": \"First Amendment to Warehouse Lease \\u2014 Easton Distribution Center\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"author\": \"D. Okafor\", \"date\": \"2025-08-04\", \"content\": \"1. Premises: expanded to include Bay 6 (32,000 sq ft), total 120,000 sq ft. 2. Term: extended through 2031-06-14. 3. Renewal: the renewal provisions of the Lease are deleted in their entirety; renewal options, exercise windows, and notice mechanics for the expanded Premises are instead governed by the Pinehurst Master Lease Framework, which Landlord maintains across its tenant leases and which is incorporated herein by reference. 4. Base rent: $8.15 per sq ft per year on the expanded premises, escalator unchanged. All other terms of the Lease remain in full force...\"}"
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "name": "search",
+              "arguments": {
+                "query": "Pinehurst Master Lease Framework renewal options notice"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"results\": [{\"doc_id\": \"doc_24\", \"title\": \"Pinehurst Master Lease Framework\", \"type\": \"lease\", \"counterparty\": \"Pinehurst Realty Group\", \"date\": \"2023-03-01\", \"score\": 0.97, \"passage\": \"Section 4 (Renewal Mechanics): each lease governed by this Framework carries two (2) successive two-year renewal options, each exercisable by written notice delivered no later than eighteen (18) months before the then-current term expiration; renewal-term rent adjusts per the Framework escalator schedule...\"}]}"
         }
       ],
       "expected": {
