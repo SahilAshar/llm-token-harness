@@ -17,6 +17,10 @@ Per-spec match results are recorded in
 ``parallel_matched``/``parallel_expected``/``parallel_failed_specs``
 so partial parallel behavior ("issued 1 of 2 expected calls") falls
 out of the raw results even though the score stays all-or-nothing.
+Parallel specs may carry per-spec ``alternatives`` — adjudicated
+equally-correct variants of that one spec (e.g. counterparty scoped
+via metadata filters instead of the query string); a call matching
+the primary or any alternative satisfies the spec.
 """
 
 from __future__ import annotations
@@ -119,11 +123,16 @@ def _score_parallel(
     # that issued fewer calls than specs did not parallelize. Each call
     # may therefore satisfy at most one spec: maximum bipartite
     # matching of specs to distinct calls, via augmenting paths.
+    # A call satisfies a spec if it fully matches the spec's primary
+    # expectation or any of its adjudicated per-spec alternatives.
     compatible = [
         [
             j
             for j, tc in enumerate(tool_calls)
-            if tc.name == spec.tool and not _split_args(spec.args, tc)[1]
+            if any(
+                tc.name == variant.tool and not _split_args(variant.args, tc)[1]
+                for variant in (spec, *spec.alternatives)
+            )
         ]
         for spec in specs
     ]

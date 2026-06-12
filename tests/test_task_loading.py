@@ -75,3 +75,51 @@ def test_parallel_needs_two_specs(tmp_path: Path) -> None:
     path = _write_dataset(tmp_path, expected_parallel=_PARALLEL[:1])
     with pytest.raises(ValueError, match="at least 2"):
         load_tasks(path)
+
+
+def test_parallel_spec_alternatives_load(tmp_path: Path) -> None:
+    specs = [
+        {
+            **_PARALLEL[0],
+            "alternatives": [
+                {
+                    "tool": "search",
+                    "args": {
+                        "query": {"type": "keywords", "value": [["x", "y"]]},
+                        "filters": {"type": "exact", "value": {"counterparty": "A"}},
+                    },
+                }
+            ],
+        },
+        _PARALLEL[1],
+    ]
+    task = load_tasks(_write_dataset(tmp_path, expected_parallel=specs))[0]
+    assert task.expected_parallel is not None
+    alts = task.expected_parallel[0].alternatives
+    assert len(alts) == 1
+    assert alts[0].tool == "search"
+    assert {a.name for a in alts[0].args} == {"query", "filters"}
+    assert task.expected_parallel[1].alternatives == []
+
+
+def test_nested_spec_alternatives_rejected(tmp_path: Path) -> None:
+    specs = [
+        {
+            **_PARALLEL[0],
+            "alternatives": [{**_PARALLEL[1], "alternatives": [_PARALLEL[1]]}],
+        },
+        _PARALLEL[1],
+    ]
+    path = _write_dataset(tmp_path, expected_parallel=specs)
+    with pytest.raises(ValueError, match="cannot nest"):
+        load_tasks(path)
+
+
+def test_alternatives_on_expected_alternatives_rejected(tmp_path: Path) -> None:
+    path = _write_dataset(
+        tmp_path,
+        expected=_EXPECTED,
+        expected_alternatives=[{**_EXPECTED, "alternatives": [_EXPECTED]}],
+    )
+    with pytest.raises(ValueError, match="alternatives"):
+        load_tasks(path)
