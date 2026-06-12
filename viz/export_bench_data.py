@@ -1,17 +1,26 @@
-"""Export the 2026-06-12 run-2 benchmark into one canonical JSON.
+"""Export a benchmark run into the canonical viz data layout.
 
 All viz/insight/hardening views read this single export so their
 numbers can never drift from each other.
 
+Runs accumulate as history over time. Each invocation writes three things
+under ``viz/data/`` (history is a north star — see CLAUDE.md):
+
+    runs/<date>.json   the dated snapshot for this run (immutable history)
+    latest.json        a copy of the most recent run; the live site fetches
+                       this (``pages-index.html`` does ``fetch('./data/latest.json')``)
+    runs.json          a manifest listing every dated run, newest first, so a
+                       future history view can populate a run picker
+
 Usage:
-    python viz/export_bench_data.py [REPO_ROOT] [OUT_PATH]
+    python viz/export_bench_data.py [REPO_ROOT] [DATA_DIR]
 
 Defaults:
     REPO_ROOT -> the repo root (this file's parent's parent)
-    OUT_PATH  -> viz/data/bench_data_<date tag>.json
+    DATA_DIR  -> viz/data
 
 Reads the gitignored run files listed in ``RUN`` under REPO_ROOT and
-writes the committed data snapshot. Parallel-task records are
+writes the committed data snapshots. Parallel-task records are
 RE-SCORED from their recorded ``actual_calls`` under the current
 ``src.scorer`` (the run executed before per-spec alternatives, PR #25,
 merged); single-call scoring is unchanged by #25, so recorded scores
@@ -33,8 +42,8 @@ from src.scorer import score_task  # noqa: E402
 from src.tasks import load_tasks  # noqa: E402
 
 DATE_TAG = "2026-06-12-r2"
-OUT = REPO / "viz" / "data" / f"bench_data_{DATE_TAG}.json"
 DATASET = "data/tasks/search_agent_v1.json"
+DATA_DIR = REPO / "viz" / "data"
 
 # The 12-config run of 2026-06-12 afternoon (25-task dataset, post-#22).
 # Explicit filenames: the morning run shares the date prefix, and the
@@ -144,9 +153,53 @@ def load_runs(repo: Path) -> list[dict]:
     return runs
 
 
+def write_outputs(export: dict, data_dir: Path) -> list[Path]:
+    """Write the dated snapshot, refresh latest.json, and upsert the manifest.
+
+    Returns the paths written, newest snapshot first. The manifest is an
+    upsert keyed by date, so re-exporting an existing run replaces its entry
+    rather than duplicating it; runs are listed newest-first and ``latest``
+    points at the max date.
+    """
+    meta = export["meta"]
+    date = meta["date"]
+    runs_dir = data_dir / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+
+    dated = runs_dir / f"{date}.json"
+    latest = data_dir / "latest.json"
+    blob = json.dumps(export, indent=2) + "\n"
+    dated.write_text(blob)
+
+    manifest_path = data_dir / "runs.json"
+    by_date: dict[str, dict] = {}
+    if manifest_path.exists():
+        prior = json.loads(manifest_path.read_text())
+        for entry in prior.get("runs", []):
+            by_date[entry["date"]] = entry
+    by_date[date] = {
+        "date": date,
+        "path": f"runs/{date}.json",
+        "dataset": meta["dataset"],
+        "n_tasks": meta["n_tasks"],
+        "n_configs": meta["n_configs"],
+        "note": meta.get("note", ""),
+    }
+    runs = sorted(by_date.values(), key=lambda e: e["date"], reverse=True)
+    manifest = {"latest": runs[0]["date"], "runs": runs}
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    # latest.json mirrors the newest dated snapshot the manifest knows about.
+    newest = runs[0]["date"]
+    newest_blob = blob if newest == date else (runs_dir / f"{newest}.json").read_text()
+    latest.write_text(newest_blob)
+
+    return [dated, latest, manifest_path]
+
+
 def main() -> None:
     repo = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else REPO
-    out = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else OUT
+    data_dir = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else DATA_DIR
 
     runs = load_runs(repo)
     tasks = load_tasks(repo / DATASET)
@@ -286,10 +339,9 @@ def main() -> None:
         "prior_run_june10": PRIOR,
     }
 
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w") as fh:
-        json.dump(export, fh, indent=2)
-    print(f"wrote {out}")
+    written = write_outputs(export, data_dir)
+    for path in written:
+        print(f"wrote {path}")
     print(
         f"configs={len(configs)} tasks={export['meta']['n_tasks']} "
         f"distractor_configs={len(distractors)}"
