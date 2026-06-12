@@ -18,6 +18,9 @@ def convert_messages(
     calls become ``tool_use`` content blocks; ``role: "tool"`` results
     become ``tool_result`` blocks inside a user message (Anthropic has
     no tool role). Synthetic IDs pair each result with its call.
+    Consecutive tool results (from a parallel call batch) are merged
+    into one user message — Anthropic's documented format for parallel
+    tool results.
     """
     system_text = ""
     converted: list[dict[str, Any]] = []
@@ -48,18 +51,22 @@ def convert_messages(
             converted.append({"role": "assistant", "content": blocks})
         elif role == "tool":
             tool_id = pending_ids.pop(0) if pending_ids else f"toolu_{counter}"
-            converted.append(
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": tool_id,
-                            "content": m.get("content") or "",
-                        }
-                    ],
-                }
-            )
+            result_block = {
+                "type": "tool_result",
+                "tool_use_id": tool_id,
+                "content": m.get("content") or "",
+            }
+            prev = converted[-1] if converted else None
+            if (
+                prev is not None
+                and prev["role"] == "user"
+                and isinstance(prev["content"], list)
+                and prev["content"]
+                and prev["content"][-1].get("type") == "tool_result"
+            ):
+                prev["content"].append(result_block)
+            else:
+                converted.append({"role": "user", "content": [result_block]})
         else:
             converted.append({"role": role, "content": m["content"]})
 
