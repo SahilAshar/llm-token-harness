@@ -308,11 +308,11 @@ def main() -> None:
   .md-content ul, .md-content ol { margin: 8px 0; padding-left: 24px; }
   .md-content code { background: var(--panel-2); border: 1px solid var(--border);
     border-radius: 4px; padding: 1px 5px; font-size: 12.5px;
-    font-family: "SF Mono", ui-monospace, Menlo, monospace; color: #b9c4d4; }
-  .md-content pre { background: #0a0e14; border: 1px solid var(--border);
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; color: var(--code-fg); }
+  .md-content pre { background: var(--code-bg); border: 1px solid var(--border);
     border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 14px 0; }
   .md-content pre code { background: none; border: none; padding: 0;
-    font-size: 12.5px; color: #c9d4e3; line-height: 1.5; }
+    font-size: 12.5px; color: var(--code-fg); line-height: 1.5; }
   .md-content blockquote { border-left: 3px solid var(--accent);
     margin: 14px 0; padding: 4px 16px; color: var(--muted); background: var(--panel); }
   .md-content hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }

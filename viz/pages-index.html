@@ -6,20 +6,60 @@
 <title>LLM Tool-Selection Benchmark — Search Agent Harness</title>
 <style>
   :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --panel-2: #1c2330;
-    --border: #2a3340;
-    --text: #e6edf3;
-    --muted: #8b97a7;
-    --faint: #5a6675;
+    color-scheme: light;
+    --bg: #F8F8F8;
+    --panel: #FFFFFF;
+    --panel-2: #F0F0F1;
+    --border: #E5E5E5;
+    --text: #3B3B3B;
+    --heading: #1F1F1F;
+    --muted: #616161;
+    --faint: #868686;
+    --accent: #005FB8;
+    --grid: #E7E7E8;
     --openai: #10a37f;
     --anthropic: #d97757;
     --ollama: #7c6cf0;
-    --accent: #58a6ff;
-    --good: #3fb950;
-    --bad: #f85149;
-    --warn: #d29922;
+    --good: #1A7F37;
+    --good-2: #2EA043;
+    --on-good: #FFFFFF;
+    --bad: #CF222E;
+    --warn: #9A6700;
+    --header-2: #FFFFFF;
+    --fail-bg: #F7E8E8;
+    --fail-border: rgba(207,34,46,0.35);
+    --bad-soft: rgba(207,34,46,0.10);
+    --code-bg: #F1F1F1;
+    --code-fg: #3B3B3B;
+    --shadow-soft: 0 6px 18px rgba(31,31,31,0.08);
+  }
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #1F1F1F;
+    --panel: #181818;
+    --panel-2: #262626;
+    --border: #2B2B2B;
+    --text: #CCCCCC;
+    --heading: #FFFFFF;
+    --muted: #9D9D9D;
+    --faint: #868686;
+    --accent: #4DAAFC;
+    --grid: #2A2A2A;
+    --openai: #10a37f;
+    --anthropic: #d97757;
+    --ollama: #7c6cf0;
+    --good: #3FB950;
+    --good-2: #7EE787;
+    --on-good: #06210E;
+    --bad: #F85149;
+    --warn: #D29922;
+    --header-2: #161616;
+    --fail-bg: #2A2020;
+    --fail-border: rgba(248,81,73,0.35);
+    --bad-soft: rgba(248,81,73,0.14);
+    --code-bg: #0F0F0F;
+    --code-fg: #CCCCCC;
+    --shadow-soft: 0 10px 28px rgba(0,0,0,0.35);
   }
   * { box-sizing: border-box; }
   body {
@@ -33,9 +73,10 @@
   header {
     padding: 32px 40px 24px;
     border-bottom: 1px solid var(--border);
-    background: linear-gradient(180deg, #11161f 0%, var(--bg) 100%);
+    background: linear-gradient(180deg, var(--header-2) 0%, var(--bg) 100%);
   }
-  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; color: var(--heading); }
   header .sub { color: var(--muted); font-size: 14px; }
   .northstar {
     margin-top: 16px;
@@ -58,6 +99,18 @@
   }
   .legend .item { display: flex; align-items: center; gap: 6px; }
   .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  /* theme toggle (matches sahilashar.com) */
+  .theme-toggle {
+    appearance: none; border: 1px solid var(--border); background: var(--panel);
+    color: var(--heading); border-radius: 999px; width: 44px; height: 30px;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+    box-shadow: var(--shadow-soft); flex-shrink: 0;
+  }
+  .theme-toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .theme-toggle:active { transform: translateY(0); }
+  .theme-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent), var(--shadow-soft); }
+  .theme-toggle__icon { font-size: 16px; line-height: 1; }
   main {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
@@ -72,19 +125,11 @@
     border-radius: 10px;
     padding: 20px 22px 22px;
     overflow: hidden;
+    box-shadow: var(--shadow-soft);
   }
   .card.wide { grid-column: 1 / -1; }
-  .card h2 {
-    margin: 0 0 2px;
-    font-size: 16px;
-    letter-spacing: -0.01em;
-  }
-  .card .chartnum {
-    color: var(--faint);
-    font-weight: 600;
-    font-size: 12px;
-    margin-right: 6px;
-  }
+  .card h2 { margin: 0 0 2px; font-size: 16px; letter-spacing: -0.01em; color: var(--heading); }
+  .card .chartnum { color: var(--faint); font-weight: 600; font-size: 12px; margin-right: 6px; }
   .card .insight {
     color: var(--muted);
     font-size: 12.5px;
@@ -98,7 +143,7 @@
   .axis-label { fill: var(--faint); font-size: 11px; }
   .tick text { fill: var(--muted); font-size: 10px; }
   .tick line { stroke: var(--border); }
-  .grid line { stroke: #20262f; stroke-dasharray: 2 3; }
+  .grid line { stroke: var(--grid); stroke-dasharray: 2 3; }
   .pt-label { fill: var(--text); font-size: 10px; }
   .bar-label { fill: var(--text); font-size: 11px; }
   .bar-val { fill: var(--muted); font-size: 10px; }
@@ -107,19 +152,19 @@
   .matrix th { color: var(--muted); font-weight: 500; text-align: center; padding: 5px 6px; font-size: 11px; }
   .matrix td.rowlabel { color: var(--text); text-align: left; padding: 4px 10px 4px 2px; white-space: nowrap; font-size: 12px; }
   .matrix td.cell { text-align: center; padding: 4px; }
-  .cellbox { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 54px; height: 30px; border-radius: 5px; font-size: 11px; font-weight: 600; color: #0d1117; }
+  .cellbox { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 54px; height: 30px; border-radius: 5px; font-size: 11px; font-weight: 600; color: var(--heading); }
   .stripcell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .pf { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
-  .pass { background: var(--good); color: #06210e; }
-  .fail { background: #30363d; color: var(--bad); border: 1px solid #44282a; }
+  .pass { background: var(--good); color: var(--on-good); }
+  .fail { background: var(--fail-bg); color: var(--bad); border: 1px solid var(--fail-border); }
   .calls { font-size: 9.5px; color: var(--faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.3; }
   .pill { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
   .footer { color: var(--faint); font-size: 11px; padding: 0 40px 40px; max-width: 1700px; margin: 0 auto; }
   .nodata { color: var(--bad); font-size: 12px; padding: 20px; }
   .tag { font-size: 9px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; font-weight: 600; }
-  .tag.par { background: rgba(88,166,255,0.18); color: var(--accent); }
-  .tag.alt { background: rgba(210,153,34,0.18); color: var(--warn); }
-  .tag.floor { background: rgba(63,185,80,0.15); color: var(--good); }
+  .tag.par { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+  .tag.alt { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
+  .tag.floor { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
 
   /* ---- tabs + markdown (combined visualizer) ---- */
   nav.tabs {
@@ -151,11 +196,11 @@
   .md-content ul, .md-content ol { margin: 8px 0; padding-left: 24px; }
   .md-content code { background: var(--panel-2); border: 1px solid var(--border);
     border-radius: 4px; padding: 1px 5px; font-size: 12.5px;
-    font-family: "SF Mono", ui-monospace, Menlo, monospace; color: #b9c4d4; }
-  .md-content pre { background: #0a0e14; border: 1px solid var(--border);
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; color: var(--code-fg); }
+  .md-content pre { background: var(--code-bg); border: 1px solid var(--border);
     border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 14px 0; }
   .md-content pre code { background: none; border: none; padding: 0;
-    font-size: 12.5px; color: #c9d4e3; line-height: 1.5; }
+    font-size: 12.5px; color: var(--code-fg); line-height: 1.5; }
   .md-content blockquote { border-left: 3px solid var(--accent);
     margin: 14px 0; padding: 4px 16px; color: var(--muted); background: var(--panel); }
   .md-content hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
@@ -170,11 +215,29 @@
   table.md-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
 
 </style>
+<script>
+(function () {
+  var key = "theme-preference";
+  var root = document.documentElement;
+  var media = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+  var stored = null;
+  try { stored = localStorage.getItem(key); } catch (e) { stored = null; }
+  var theme = (stored === "light" || stored === "dark") ? stored : (media && media.matches ? "dark" : "light");
+  root.setAttribute("data-theme", theme);
+})();
+</script>
 </head>
 <body>
 <header>
-  <h1>LLM Tool-Selection Benchmark</h1>
-  <div class="sub" id="subhead"></div>
+  <div class="header-top">
+    <div>
+      <h1>LLM Tool-Selection Benchmark</h1>
+      <div class="sub" id="subhead"></div>
+    </div>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme" aria-pressed="false">
+      <span class="theme-toggle__icon" aria-hidden="true">☾</span>
+    </button>
+  </div>
   <div class="northstar">
     North-star: <b>CPC (Cost Per Correct)</b> = total run cost / tasks with correct retrieval strategy &nbsp;·&nbsp;
     Priority: <b>Quality → Latency → Dollar cost</b>
@@ -540,14 +603,22 @@
 window.__renderDashboard = function () {
 const DATA = window.__BENCH_DATA__;
 
-const COLORS = { openai: '#10a37f', anthropic: '#d97757', ollama: '#7c6cf0' };
-const provColor = p => COLORS[p] || '#888';
+const COLORS = { openai: 'var(--openai)', anthropic: 'var(--anthropic)', ollama: 'var(--ollama)' };
+const provColor = p => COLORS[p] || 'var(--muted)';
 const fmtUsd = v => v === 0 ? '$0' : (v < 0.001 ? '$' + v.toFixed(6) : '$' + v.toFixed(v < 0.01 ? 5 : v < 1 ? 4 : 2));
 const SVGNS = 'http://www.w3.org/2000/svg';
 
 function el(tag, attrs, text) {
   const e = document.createElementNS(SVGNS, tag);
-  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (attrs) for (const k in attrs) {
+    const v = attrs[k];
+    if ((k === 'fill' || k === 'stroke') && typeof v === 'string'
+        && (v.indexOf('var(') === 0 || v.indexOf('color-mix(') === 0)) {
+      e.style[k] = v;
+    } else {
+      e.setAttribute(k, v);
+    }
+  }
   if (text != null) e.textContent = text;
   return e;
 }
@@ -607,14 +678,14 @@ const N = DATA.meta.n_tasks;
   for (let i = 0; i <= 5; i++) {
     const a = i / 5;
     const y = sy(a);
-    g.appendChild(el('line', {class:'', x1:0, y1:y, x2:iw, y2:y, stroke:'#20262f', 'stroke-dasharray':'2 3'}));
+    g.appendChild(el('line', {class:'', x1:0, y1:y, x2:iw, y2:y, stroke:'var(--grid)', 'stroke-dasharray':'2 3'}));
     g.appendChild(el('text', {x:-10, y:y+3, 'text-anchor':'end', class:'tick'}, (a*100).toFixed(0)+'%'));
   }
   // x ticks (log decades)
   [0.001, 0.01, 0.1, 1].forEach(v => {
     if (Math.log10(v) < lx0 || Math.log10(v) > lx1) return;
     const x = sx(v);
-    g.appendChild(el('line', {x1:x, y1:0, x2:x, y2:ih, stroke:'#20262f', 'stroke-dasharray':'2 3'}));
+    g.appendChild(el('line', {x1:x, y1:0, x2:x, y2:ih, stroke:'var(--grid)', 'stroke-dasharray':'2 3'}));
     g.appendChild(el('text', {x:x, y:ih+18, 'text-anchor':'middle', class:'tick'}, fmtUsd(v)));
   });
   // $0 slot tick
@@ -636,16 +707,16 @@ const N = DATA.meta.n_tasks;
     const x = sx(p.total_cost_usd), y = sy(p.acc);
     dPath += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
   });
-  g.appendChild(el('path', {d:dPath, fill:'none', stroke:'#58a6ff', 'stroke-width':1.6, 'stroke-dasharray':'5 4', opacity:0.7}));
+  g.appendChild(el('path', {d:dPath, fill:'none', stroke:'var(--accent)', 'stroke-width':1.6, 'stroke-dasharray':'5 4', opacity:0.7}));
 
   // points
   pts.forEach(p => {
     const x = sx(p.total_cost_usd), y = sy(p.acc);
     const col = provColor(p.provider);
     const onFront = frontier.includes(p);
-    g.appendChild(el('circle', {cx:x, cy:y, r:onFront?7:5.5, fill:col, stroke:onFront?'#fff':'#0d1117', 'stroke-width':onFront?1.6:1, opacity:0.95}));
+    g.appendChild(el('circle', {cx:x, cy:y, r:onFront?7:5.5, fill:col, stroke:onFront?'var(--heading)':'var(--panel)', 'stroke-width':onFront?1.6:1, opacity:0.95}));
     // label
-    const lbl = el('text', {x:x+10, y:y+3.5, class:'pt-label', fill:'#cdd6e0'}, p.label);
+    const lbl = el('text', {x:x+10, y:y+3.5, class:'pt-label', fill:'var(--text)'}, p.label);
     // nudge crowded left cluster
     if (p.total_cost_usd < 0.03 && p.total_cost_usd > 0) lbl.setAttribute('y', y - 8);
     g.appendChild(lbl);
@@ -672,7 +743,7 @@ const N = DATA.meta.n_tasks;
     const y = m.t + i*rowH;
     const bw = iw * (d.score / maxV);
     svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, d.label));
-    svg.appendChild(el('rect', {x:m.l, y:y+4, width:iw, height:rowH-10, fill:'#1c2330', rx:3}));
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:iw, height:rowH-10, fill:'var(--panel-2)', rx:3}));
     svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:provColor(d.provider), rx:3}));
     svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, d.score + '/' + N));
   });
@@ -703,7 +774,7 @@ const N = DATA.meta.n_tasks;
     svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, d.label));
     svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:provColor(d.provider), rx:3}));
     svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, fmtUsd(d.cpc_usd)));
-    if (i===0) svg.appendChild(el('text', {x:m.l+bw+44, y:y+rowH/2+4, class:'bar-val', fill:'#3fb950'}, '◀ king'));
+    if (i===0) svg.appendChild(el('text', {x:m.l+bw+44, y:y+rowH/2+4, class:'bar-val', fill:'var(--good)'}, '◀ king'));
   });
   // gemma row
   const gy = m.t + paid.length*rowH;
@@ -781,13 +852,13 @@ const N = DATA.meta.n_tasks;
     const p = byLabel[label];
     svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, label));
     if (!p) {
-      svg.appendChild(el('text', {x:m.l+4, y:y+rowH/2+4, class:'bar-val', fill:'#3fb950'}, '— clean —'));
+      svg.appendChild(el('text', {x:m.l+4, y:y+rowH/2+4, class:'bar-val', fill:'var(--good)'}, '— clean —'));
       return;
     }
     const tot = p.picks.reduce((s,x)=>s+x.count,0);
     const ntasks = p.picks.length;
     const bw = iw*(tot/maxTot);
-    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:'#f85149', rx:3, opacity:0.85}));
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:'var(--bad)', rx:3, opacity:0.85}));
     svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'},
       tot + ' calls · ' + ntasks + ' task' + (ntasks>1?'s':'') + ' (' + p.picks.map(x=>x.task.replace(/_0\d$/,m=>m)).map(t=>t).join(', ') + ')'));
   });
@@ -796,7 +867,7 @@ const N = DATA.meta.n_tasks;
   const note = document.createElement('div');
   note.className='insight';
   note.style.marginTop='12px';
-  note.style.borderLeftColor='#f85149';
+  note.style.borderLeftColor='var(--bad)';
   note.innerHTML = 'Red bar length = total distractor calls (scaled). All distractor picks = <code>summarize_document</code>.';
   c.appendChild(note);
 })();
@@ -831,12 +902,12 @@ const N = DATA.meta.n_tasks;
       const frac = cell.correct/cell.total;
       const td = document.createElement('td'); td.className='cell';
       const box = document.createElement('div'); box.className='cellbox';
-      // green ramp
-      const alpha = 0.12 + frac*0.88;
-      box.style.background = `rgba(63,185,80,${alpha})`;
-      box.style.color = frac > 0.5 ? '#06210e' : '#cdd6e0';
+      // green ramp (capped so theme heading text stays readable on the tint)
+      const pct = Math.round((0.12 + frac*0.42) * 100);
+      box.style.background = `color-mix(in srgb, var(--good) ${pct}%, transparent)`;
+      box.style.color = 'var(--heading)';
       box.textContent = cell.correct + '/' + cell.total;
-      if (cell.correct === 0) { box.style.background='#241416'; box.style.color='#f85149'; }
+      if (cell.correct === 0) { box.style.background='var(--bad-soft)'; box.style.color='var(--bad)'; }
       td.appendChild(box);
       tr.appendChild(td);
     });
@@ -864,28 +935,28 @@ const N = DATA.meta.n_tasks;
   // gridlines for thresholds
   [5, 12].forEach(v => {
     const x = m.l + iw*(v/12);
-    svg.appendChild(el('line', {x1:x,y1:m.t-2,x2:x,y2:H-m.b, stroke:'#2a3340','stroke-dasharray':'3 3'}));
-    svg.appendChild(el('text', {x:x, y:m.t-3, 'text-anchor':'middle', class:'tick', fill:'#5a6675'}, v));
+    svg.appendChild(el('line', {x1:x,y1:m.t-2,x2:x,y2:H-m.b, stroke:'var(--border)','stroke-dasharray':'3 3'}));
+    svg.appendChild(el('text', {x:x, y:m.t-3, 'text-anchor':'middle', class:'tick', fill:'var(--faint)'}, v));
   });
   tasks.forEach((t,i) => {
     const y = m.t+i*rowH;
     const bw = iw*(t.n_pass/12);
-    let col = '#f85149';
-    if (t.n_pass === 12) col = '#3fb950';
-    else if (t.n_pass >= 9) col = '#7ee787';
-    else if (t.n_pass >= 6) col = '#d29922';
+    let col = 'var(--bad)';
+    if (t.n_pass === 12) col = 'var(--good)';
+    else if (t.n_pass >= 9) col = 'var(--good-2)';
+    else if (t.n_pass >= 6) col = 'var(--warn)';
     // label + tags
     const labelG = el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label', 'font-size':'11px'}, t.task_id);
     svg.appendChild(labelG);
-    svg.appendChild(el('rect', {x:m.l, y:y+3, width:iw, height:rowH-7, fill:'#1c2330', rx:2}));
+    svg.appendChild(el('rect', {x:m.l, y:y+3, width:iw, height:rowH-7, fill:'var(--panel-2)', rx:2}));
     svg.appendChild(el('rect', {x:m.l, y:y+3, width:bw, height:rowH-7, fill:col, rx:2, opacity:0.92}));
     svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, t.n_pass + '/12'));
     // tags after value
     let tx = m.l + iw + 4;
     const tags = [];
-    if (t.is_parallel) tags.push(['PAR','#58a6ff','rgba(88,166,255,0.18)']);
-    if (t.is_alt) tags.push(['ALT','#d29922','rgba(210,153,34,0.18)']);
-    if (t.is_floor) tags.push(['FLR','#3fb950','rgba(63,185,80,0.15)']);
+    if (t.is_parallel) tags.push(['PAR','var(--accent)','color-mix(in srgb, var(--accent) 18%, transparent)']);
+    if (t.is_alt) tags.push(['ALT','var(--warn)','color-mix(in srgb, var(--warn) 20%, transparent)']);
+    if (t.is_floor) tags.push(['FLR','var(--good)','color-mix(in srgb, var(--good) 16%, transparent)']);
     // draw tags as small rects to the right of label area instead (left side)
     let lx = m.l - 8 - (t.task_id.length*5.6) - 6;
     tags.forEach(([txt,fg,bg]) => {
@@ -922,17 +993,17 @@ const N = DATA.meta.n_tasks;
   // axis
   for (let i=0;i<=5;i++){
     const a=i/5; const x=sx(a);
-    g.appendChild(el('line',{x1:x,y1:-6,x2:x,y2:ih,stroke:'#20262f','stroke-dasharray':'2 3'}));
+    g.appendChild(el('line',{x1:x,y1:-6,x2:x,y2:ih,stroke:'var(--grid)','stroke-dasharray':'2 3'}));
     g.appendChild(el('text',{x:x,y:ih+18,'text-anchor':'middle',class:'tick'},(a*100).toFixed(0)+'%'));
   }
   g.appendChild(el('text',{x:iw/2,y:ih+40,'text-anchor':'middle',class:'axis-label'},'Accuracy (score / task count)'));
   lanes.forEach(lane => {
     // spread band
-    g.appendChild(el('rect',{x:sx(lane.lo), y:lane.y-9, width:sx(lane.hi)-sx(lane.lo), height:18, fill:'#58a6ff', opacity:0.10, rx:9}));
-    g.appendChild(el('line',{x1:sx(lane.lo),y1:lane.y,x2:sx(lane.hi),y2:lane.y,stroke:'#3a4453','stroke-width':2}));
-    g.appendChild(el('text',{x:0,y:lane.y-16,class:'axis-label','font-size':'11.5px',fill:'#cdd6e0'},lane.name));
+    g.appendChild(el('rect',{x:sx(lane.lo), y:lane.y-9, width:sx(lane.hi)-sx(lane.lo), height:18, fill:'var(--accent)', opacity:0.10, rx:9}));
+    g.appendChild(el('line',{x1:sx(lane.lo),y1:lane.y,x2:sx(lane.hi),y2:lane.y,stroke:'var(--border)','stroke-width':2}));
+    g.appendChild(el('text',{x:0,y:lane.y-16,class:'axis-label','font-size':'11.5px',fill:'var(--text)'},lane.name));
     lane.data.forEach(d => {
-      g.appendChild(el('circle',{cx:sx(d.acc),cy:lane.y,r:5,fill:'#58a6ff',stroke:'#0d1117','stroke-width':1,opacity:0.85}));
+      g.appendChild(el('circle',{cx:sx(d.acc),cy:lane.y,r:5,fill:'var(--accent)',stroke:'var(--panel)','stroke-width':1,opacity:0.85}));
     });
     // range bracket label
     g.appendChild(el('text',{x:sx(lane.hi)+8,y:lane.y+4,class:'bar-val'}, 'spread ' + ((lane.hi-lane.lo)*100).toFixed(0) + ' pts'));
@@ -964,7 +1035,7 @@ const N = DATA.meta.n_tasks;
   const syCost = v => ih - (v/maxCost)*ih*0.92;
   const syScore = v => ih - ((v-17)/(20-17))*ih*0.9; // score band 17..20
 
-  for(let i=0;i<=4;i++){ const y=ih*i/4; g.appendChild(el('line',{x1:0,y1:y,x2:iw,y2:y,stroke:'#20262f','stroke-dasharray':'2 3'})); }
+  for(let i=0;i<=4;i++){ const y=ih*i/4; g.appendChild(el('line',{x1:0,y1:y,x2:iw,y2:y,stroke:'var(--grid)','stroke-dasharray':'2 3'})); }
   fable.forEach((d,i)=> g.appendChild(el('text',{x:xs[i],y:ih+18,'text-anchor':'middle',class:'tick'}, d.effort)));
   g.appendChild(el('text',{x:iw/2,y:ih+38,'text-anchor':'middle',class:'axis-label'},'Reasoning effort'));
 
@@ -973,26 +1044,26 @@ const N = DATA.meta.n_tasks;
     fable.forEach((row,i)=> d += (i?'L':'M')+xs[i]+' '+sc(accessor(row))+' ');
     g.appendChild(el('path',{d, fill:'none', stroke:color, 'stroke-width':2, 'stroke-dasharray':dash||''}));
     fable.forEach((row,i)=>{
-      g.appendChild(el('circle',{cx:xs[i],cy:sc(accessor(row)),r:4,fill:color,stroke:'#0d1117'}));
+      g.appendChild(el('circle',{cx:xs[i],cy:sc(accessor(row)),r:4,fill:color,stroke:'var(--panel)'}));
     });
     return color;
   }
   line(d=>d.output_tokens, syTok, '#d97757', 'output tokens');
   line(d=>d.total_cost_usd, syCost, '#f0a868', 'cost', '4 3');
-  line(d=>d.score, syScore, '#3fb950', 'score');
+  line(d=>d.score, syScore, 'var(--good)', 'score');
 
   // value annotations
   fable.forEach((d,i)=>{
     g.appendChild(el('text',{x:xs[i],y:syTok(d.output_tokens)-8,'text-anchor':'middle','font-size':'9.5px',fill:'#d97757'}, d.output_tokens));
-    g.appendChild(el('text',{x:xs[i],y:syScore(d.score)-8,'text-anchor':'middle','font-size':'9.5px',fill:'#3fb950','font-weight':'700'}, d.score));
+    g.appendChild(el('text',{x:xs[i],y:syScore(d.score)-8,'text-anchor':'middle','font-size':'9.5px',fill:'var(--good)','font-weight':'700'}, d.score));
   });
   // mini legend
-  const leg = [['output tokens','#d97757'],['cost','#f0a868'],['score (17–20)','#3fb950']];
+  const leg = [['output tokens','#d97757'],['cost','#f0a868'],['score (17–20)','var(--good)']];
   leg.forEach(([t,col],i)=>{
     const ly = -8 + i*0; const lx = i*0;
     const gx = i* (iw/3);
     g.appendChild(el('rect',{x:gx,y:-18,width:10,height:10,rx:2,fill:col}));
-    g.appendChild(el('text',{x:gx+14,y:-9,'font-size':'10px',fill:'#8b97a7'},t));
+    g.appendChild(el('text',{x:gx+14,y:-9,'font-size':'10px',fill:'var(--muted)'},t));
   });
   c.appendChild(svg);
 })();
@@ -1037,6 +1108,36 @@ const N = DATA.meta.n_tasks;
 })();
 </script>
 
+<script>
+(function () {
+  var key = "theme-preference";
+  var root = document.documentElement;
+  var button = document.querySelector("[data-theme-toggle]");
+  if (!button) return;
+  var icon = button.querySelector(".theme-toggle__icon");
+  var media = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+  function getTheme() { return root.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
+  function syncToggle(theme) {
+    var isDark = theme === "dark";
+    button.setAttribute("aria-pressed", String(isDark));
+    button.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+    if (icon) icon.textContent = isDark ? "☾" : "☀";
+  }
+  function applyTheme(theme) { root.setAttribute("data-theme", theme); syncToggle(theme); }
+  syncToggle(getTheme());
+  button.addEventListener("click", function () {
+    var next = getTheme() === "dark" ? "light" : "dark";
+    applyTheme(next);
+    try { localStorage.setItem(key, next); } catch (e) {}
+  });
+  var stored = null;
+  try { stored = localStorage.getItem(key); } catch (e) {}
+  if ((stored === "light" || stored === "dark") || !media) return;
+  var onChange = function (e) { applyTheme(e.matches ? "dark" : "light"); };
+  if (typeof media.addEventListener === "function") media.addEventListener("change", onChange);
+  else if (typeof media.addListener === "function") media.addListener(onChange);
+})();
+</script>
 
 <script>
 (function () {
