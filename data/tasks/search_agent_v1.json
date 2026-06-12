@@ -33,7 +33,7 @@
       "task_id": "halverson_dispute_02",
       "scenario_id": "halverson_dispute",
       "step": 2,
-      "description": "Decomposition returned two independent retrieval sub-queries (the third is in-context comparison work). The correct move is BOTH searches in one parallel batch; issuing only one scores 0.",
+      "description": "Decomposition returned two independent retrieval sub-queries (the third is in-context comparison work). The correct move is BOTH searches in one parallel batch; issuing only one scores 0. Each spec requires (counterparty) AND (indemnification OR liability): the counterparty token (halverson / apex) plus at least one topic token, expressed via nested-OR keywords. The decompose response surfaces 'indemnification AND limitation of liability', so either topic synonym binds a leg, but a leg must still be on-topic — an off-topic counterparty-scoped search (pricing, termination) does not pass. This supersedes the interim counterparty-only relaxation, which let off-topic fan-outs through (adjudicated 2026-06-12).",
       "messages": [
         {
           "role": "system",
@@ -68,7 +68,10 @@
               "type": "keywords",
               "value": [
                 "halverson",
-                "indemnification"
+                [
+                  "indemnification",
+                  "liability"
+                ]
               ]
             }
           }
@@ -80,7 +83,10 @@
               "type": "keywords",
               "value": [
                 "apex",
-                "indemnification"
+                [
+                  "indemnification",
+                  "liability"
+                ]
               ]
             }
           }

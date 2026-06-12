@@ -44,6 +44,9 @@ class TaskResult(BaseModel, frozen=True):
     parallel_expected: int | None = None
     parallel_matched: int | None = None
     parallel_failed_specs: list[str] | None = None
+    # Full batch (name + arguments) for parallel tasks, so pass-sets are
+    # auditable from results JSON. None on single-call paths (out of scope).
+    actual_calls: list[dict[str, Any]] | None = None
 
 
 def _match_exact(expected: Any, actual: Any) -> bool:
@@ -70,9 +73,18 @@ def _match_exact(expected: Any, actual: Any) -> bool:
     return str(expected).lower() == str(actual).lower()
 
 
-def _match_keywords(keywords: list[str], actual: Any) -> bool:
+def _match_keywords(keywords: list[Any], actual: Any) -> bool:
+    # Each element is either a string (required substring, AND) or a list
+    # of strings (an any-of group: at least one synonym must appear, OR).
+    # Flat string lists behave exactly as before (all substrings required).
     actual_lower = str(actual).lower()
-    return all(kw.lower() in actual_lower for kw in keywords)
+    for kw in keywords:
+        if isinstance(kw, list):
+            if not any(str(syn).lower() in actual_lower for syn in kw):
+                return False
+        elif str(kw).lower() not in actual_lower:
+            return False
+    return True
 
 
 def _match_arg(expected: ExpectedArg, actual_args: dict[str, Any]) -> bool:
@@ -144,6 +156,9 @@ def _score_parallel(
         parallel_expected=len(specs),
         parallel_matched=matched_count,
         parallel_failed_specs=failed_specs,
+        actual_calls=[
+            {"name": tc.name, "arguments": tc.arguments} for tc in tool_calls
+        ],
     )
 
 
