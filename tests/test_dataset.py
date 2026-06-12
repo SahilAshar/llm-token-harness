@@ -13,7 +13,7 @@ from src.tools import get_search_tool_names, get_tool_names
 
 DATASET_PATH = Path("data/tasks/search_agent_v1.json")
 
-# Distribution over single-call tasks; the parallel task is counted
+# Distribution over single-call tasks; parallel tasks are counted
 # separately in test_parallel_tasks.
 EXPECTED_DISTRIBUTION = {
     "search": 9,

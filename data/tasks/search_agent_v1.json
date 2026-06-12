@@ -33,7 +33,7 @@
       "task_id": "halverson_dispute_02",
       "scenario_id": "halverson_dispute",
       "step": 2,
-      "description": "Decomposition returned two independent retrieval sub-queries (the third is in-context comparison work). The correct move is BOTH searches in one parallel batch; issuing only one scores 0. Each spec requires (counterparty) AND (indemnification OR liability): the counterparty token (halverson / apex) plus at least one topic token, expressed via nested-OR keywords. The decompose response surfaces 'indemnification AND limitation of liability', so either topic synonym binds a leg, but a leg must still be on-topic — an off-topic counterparty-scoped search (pricing, termination) does not pass. This supersedes the interim counterparty-only relaxation, which let off-topic fan-outs through (adjudicated 2026-06-12).",
+      "description": "Decomposition returned two independent retrieval sub-queries (the third is in-context comparison work). The correct move is BOTH searches in one parallel batch; issuing only one scores 0. Each spec requires (counterparty) AND (indemnification OR liability): the counterparty token (halverson / apex) plus at least one topic token, expressed via nested-OR keywords. The decompose response surfaces 'indemnification AND limitation of liability', so either topic synonym binds a leg, but a leg must still be on-topic \u2014 an off-topic counterparty-scoped search (pricing, termination) does not pass. This supersedes the interim counterparty-only relaxation, which let off-topic fan-outs through (adjudicated 2026-06-12).",
       "messages": [
         {
           "role": "system",
@@ -1184,7 +1184,7 @@
       "task_id": "tri_counterparty_parallel_01",
       "scenario_id": "tri_counterparty_parallel",
       "step": 1,
-      "description": "Three independent counterparty lookups requested explicitly in one turn; the correct move is three parallel search calls in a single batch, one per counterparty, matched injectively. Issuing fewer distinct searches, serializing, or exploring metadata first scores 0. Query keywords are deliberately counterparty-only (per the halverson_dispute_02 adjudication) so topic phrasing - convenience, cancellation, early exit - cannot manufacture a keyword artifact.",
+      "description": "Three independent counterparty lookups requested explicitly in one turn; the correct move is three parallel search calls in a single batch, one per counterparty, matched injectively. Issuing fewer distinct searches, serializing, or exploring metadata first scores 0. Each spec requires (counterparty) AND (termination-topic token) via nested-OR keywords, per the halverson_dispute_02 adjudication of 2026-06-12: the 'terminat' stem / 'convenience' / 'cancel' group absorbs synonym phrasing without letting an off-topic counterparty-scoped fan-out pass.",
       "messages": [
         {
           "role": "system",
@@ -1202,7 +1202,12 @@
             "query": {
               "type": "keywords",
               "value": [
-                "halverson"
+                "halverson",
+                [
+                  "terminat",
+                  "convenience",
+                  "cancel"
+                ]
               ]
             }
           }
@@ -1213,7 +1218,12 @@
             "query": {
               "type": "keywords",
               "value": [
-                "apex"
+                "apex",
+                [
+                  "terminat",
+                  "convenience",
+                  "cancel"
+                ]
               ]
             }
           }
@@ -1224,7 +1234,12 @@
             "query": {
               "type": "keywords",
               "value": [
-                "corvid"
+                "corvid",
+                [
+                  "terminat",
+                  "convenience",
+                  "cancel"
+                ]
               ]
             }
           }
