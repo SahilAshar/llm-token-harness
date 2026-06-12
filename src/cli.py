@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from src.adapters import get_adapter
 from src.adapters.base import Provider
 from src.eval_runner import (
@@ -81,6 +83,7 @@ def format_summary(summary: RunSummary) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv()
     args = build_parser().parse_args(argv)
     adapter = get_adapter(args.provider)
     tasks = load_tasks(args.tasks)
