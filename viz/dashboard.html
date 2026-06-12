@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Tool-Selection Benchmark — Search Agent Harness</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2a3340;
+    --text: #e6edf3;
+    --muted: #8b97a7;
+    --faint: #5a6675;
+    --openai: #10a37f;
+    --anthropic: #d97757;
+    --ollama: #7c6cf0;
+    --accent: #58a6ff;
+    --good: #3fb950;
+    --bad: #f85149;
+    --warn: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  header {
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #11161f 0%, var(--bg) 100%);
+  }
+  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  .northstar {
+    margin-top: 16px;
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .northstar b { color: var(--accent); }
+  .legend {
+    margin-top: 16px;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  main {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+    gap: 20px;
+    padding: 24px 40px 60px;
+    max-width: 1700px;
+    margin: 0 auto;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px 22px;
+    overflow: hidden;
+  }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 {
+    margin: 0 0 2px;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+  .card .chartnum {
+    color: var(--faint);
+    font-weight: 600;
+    font-size: 12px;
+    margin-right: 6px;
+  }
+  .card .insight {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin: 10px 0 16px;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+  }
+  .card .insight b { color: var(--text); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  text { font-family: inherit; }
+  .axis-label { fill: var(--faint); font-size: 11px; }
+  .tick text { fill: var(--muted); font-size: 10px; }
+  .tick line { stroke: var(--border); }
+  .grid line { stroke: #20262f; stroke-dasharray: 2 3; }
+  .pt-label { fill: var(--text); font-size: 10px; }
+  .bar-label { fill: var(--text); font-size: 11px; }
+  .bar-val { fill: var(--muted); font-size: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  /* heatmap / strip tables */
+  .matrix th { color: var(--muted); font-weight: 500; text-align: center; padding: 5px 6px; font-size: 11px; }
+  .matrix td.rowlabel { color: var(--text); text-align: left; padding: 4px 10px 4px 2px; white-space: nowrap; font-size: 12px; }
+  .matrix td.cell { text-align: center; padding: 4px; }
+  .cellbox { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 54px; height: 30px; border-radius: 5px; font-size: 11px; font-weight: 600; color: #0d1117; }
+  .stripcell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .pf { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+  .pass { background: var(--good); color: #06210e; }
+  .fail { background: #30363d; color: var(--bad); border: 1px solid #44282a; }
+  .calls { font-size: 9.5px; color: var(--faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.3; }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .footer { color: var(--faint); font-size: 11px; padding: 0 40px 40px; max-width: 1700px; margin: 0 auto; }
+  .nodata { color: var(--bad); font-size: 12px; padding: 20px; }
+  .tag { font-size: 9px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; font-weight: 600; }
+  .tag.par { background: rgba(88,166,255,0.18); color: var(--accent); }
+  .tag.alt { background: rgba(210,153,34,0.18); color: var(--warn); }
+  .tag.floor { background: rgba(63,185,80,0.15); color: var(--good); }
+</style>
+</head>
+<body>
+<header>
+  <h1>LLM Tool-Selection Benchmark</h1>
+  <div class="sub" id="subhead"></div>
+  <div class="northstar">
+    North-star: <b>CPC (Cost Per Correct)</b> = total run cost / tasks with correct retrieval strategy &nbsp;·&nbsp;
+    Priority: <b>Quality → Latency → Dollar cost</b>
+  </div>
+  <div class="legend">
+    <div class="item"><span class="swatch" style="background:var(--openai)"></span> OpenAI</div>
+    <div class="item"><span class="swatch" style="background:var(--anthropic)"></span> Anthropic</div>
+    <div class="item"><span class="swatch" style="background:var(--ollama)"></span> Ollama (local, $0)</div>
+  </div>
+</header>
+<main id="main"></main>
+<div class="footer" id="footer"></div>
+
+<script id="data-blob" type="application/json">
+{"meta":{"date":"2026-06-12","dataset":"data/tasks/search_agent_v1.json","n_tasks":23,"n_configs":12,"north_star":"CPC = total run cost / tasks with correct retrieval strategy","note":"Hardened 23-task run. NOT comparable to June-10 15-task grid.","distractor_tools":["create_alert","search_history","summarize_document","tag_document","web_search"],"chains":{"halverson_dispute":5,"easton_amendment":4,"vendor_autorenew":4}},"configs":[{"label":"gpt-4o-mini","model":"gpt-4o-mini","provider":"openai","effort":null,"score":13,"n_tasks":23,"accuracy":0.5652,"total_cost_usd":0.005232,"cpc_usd":0.000402,"input_tokens":27700,"output_tokens":1795,"reasoning_tokens":0,"mean_latency_s":1.83},{"label":"gpt-5.4-nano","model":"gpt-5.4-nano","provider":"openai","effort":null,"score":16,"n_tasks":23,"accuracy":0.6957,"total_cost_usd":0.007621,"cpc_usd":0.000476,"input_tokens":30178,"output_tokens":1268,"reasoning_tokens":0,"mean_latency_s":1.25},{"label":"gpt-5.4-mini","model":"gpt-5.4-mini","provider":"openai","effort":null,"score":17,"n_tasks":23,"accuracy":0.7391,"total_cost_usd":0.027565,"cpc_usd":0.001621,"input_tokens":30178,"output_tokens":1096,"reasoning_tokens":0,"mean_latency_s":1.56},{"label":"gpt-5.5","model":"gpt-5.5","provider":"openai","effort":null,"score":18,"n_tasks":23,"accuracy":0.7826,"total_cost_usd":0.22715,"cpc_usd":0.012619,"input_tokens":30178,"output_tokens":2542,"reasoning_tokens":822,"mean_latency_s":4.16},{"label":"claude-haiku-4-5","model":"claude-haiku-4-5","provider":"anthropic","effort":null,"score":15,"n_tasks":23,"accuracy":0.6522,"total_cost_usd":0.069788,"cpc_usd":0.004653,"input_tokens":51898,"output_tokens":3578,"reasoning_tokens":0,"mean_latency_s":3.45},{"label":"claude-sonnet-4-6","model":"claude-sonnet-4-6","provider":"anthropic","effort":null,"score":17,"n_tasks":23,"accuracy":0.7391,"total_cost_usd":0.212613,"cpc_usd":0.012507,"input_tokens":51921,"output_tokens":3790,"reasoning_tokens":0,"mean_latency_s":3.44},{"label":"claude-opus-4-6","model":"claude-opus-4-6","provider":"anthropic","effort":null,"score":18,"n_tasks":23,"accuracy":0.7826,"total_cost_usd":0.361155,"cpc_usd":0.020064,"input_tokens":51921,"output_tokens":4062,"reasoning_tokens":0,"mean_latency_s":4.26},{"label":"claude-opus-4-8","model":"claude-opus-4-8","provider":"anthropic","effort":null,"score":16,"n_tasks":23,"accuracy":0.6957,"total_cost_usd":0.410465,"cpc_usd":0.025654,"input_tokens":60508,"output_tokens":4317,"reasoning_tokens":0,"mean_latency_s":2.99},{"label":"Fable 5 (low)","model":"claude-fable-5","provider":"anthropic","effort":"low","score":19,"n_tasks":23,"accuracy":0.8261,"total_cost_usd":0.73438,"cpc_usd":0.038652,"input_tokens":60508,"output_tokens":2586,"reasoning_tokens":0,"mean_latency_s":4.56},{"label":"Fable 5 (medium)","model":"claude-fable-5","provider":"anthropic","effort":"medium","score":19,"n_tasks":23,"accuracy":0.8261,"total_cost_usd":0.76228,"cpc_usd":0.04012,"input_tokens":60508,"output_tokens":3144,"reasoning_tokens":0,"mean_latency_s":4.98},{"label":"Fable 5 (high)","model":"claude-fable-5","provider":"anthropic","effort":"high","score":18,"n_tasks":23,"accuracy":0.7826,"total_cost_usd":0.79508,"cpc_usd":0.044171,"input_tokens":60508,"output_tokens":3800,"reasoning_tokens":0,"mean_latency_s":5.25},{"label":"gemma4:12b","model":"gemma4:12b","provider":"ollama","effort":null,"score":9,"n_tasks":23,"accuracy":0.3913,"total_cost_usd":0.0,"cpc_usd":0.0,"input_tokens":36166,"output_tokens":6531,"reasoning_tokens":2225,"mean_latency_s":28.5}],"parallel_task":{"task_id":"halverson_dispute_02","per_config":[{"label":"gpt-4o-mini","pass":false,"matched":0,"expected":2,"calls":["search","search"],"failed_specs":["0:search","1:search"]},{"label":"gpt-5.4-nano","pass":true,"matched":2,"expected":2,"calls":["search","search","search","search"],"failed_specs":[]},{"label":"gpt-5.4-mini","pass":false,"matched":0,"expected":2,"calls":["list_documents","list_documents"],"failed_specs":["0:search","1:search"]},{"label":"gpt-5.5","pass":false,"matched":0,"expected":2,"calls":["list_documents","list_documents","search","search"],"failed_specs":["0:search","1:search"]},{"label":"claude-haiku-4-5","pass":false,"matched":0,"expected":2,"calls":["search","search","list_documents","list_documents"],"failed_specs":["0:search","1:search"]},{"label":"claude-sonnet-4-6","pass":false,"matched":0,"expected":2,"calls":["list_documents","list_documents","search","search"],"failed_specs":["0:search","1:search"]},{"label":"claude-opus-4-6","pass":false,"matched":0,"expected":2,"calls":["search","search","list_documents","list_documents"],"failed_specs":["0:search","1:search"]},{"label":"claude-opus-4-8","pass":false,"matched":0,"expected":2,"calls":["list_documents","list_documents"],"failed_specs":["0:search","1:search"]},{"label":"Fable 5 (low)","pass":false,"matched":0,"expected":2,"calls":["list_documents","list_documents"],"failed_specs":["0:search","1:search"]},{"label":"Fable 5 (medium)","pass":false,"matched":0,"expected":2,"calls":["list_documents","list_documents"],"failed_specs":["0:search","1:search"]},{"label":"Fable 5 (high)","pass":false,"matched":0,"expected":2,"calls":["list_documents","list_documents"],"failed_specs":["0:search","1:search"]},{"label":"gemma4:12b","pass":false,"matched":0,"expected":2,"calls":[],"failed_specs":["0:search","1:search"]}]},"distractor_picks":[{"label":"gpt-4o-mini","picks":[{"task":"vendor_autorenew_02","tool":"summarize_document","count":3},{"task":"stonebridge_term_01","tool":"summarize_document","count":1}]},{"label":"claude-sonnet-4-6","picks":[{"task":"halverson_dispute_03","tool":"summarize_document","count":4},{"task":"halverson_dispute_04","tool":"summarize_document","count":2},{"task":"halverson_dispute_05","tool":"summarize_document","count":1},{"task":"vendor_autorenew_02","tool":"summarize_document","count":3},{"task":"stonebridge_term_01","tool":"summarize_document","count":1}]},{"label":"gemma4:12b","picks":[{"task":"stonebridge_term_01","tool":"summarize_document","count":1}]}],"chains_per_config":[{"label":"gpt-4o-mini","chains":{"halverson_dispute":{"correct":0,"total":5,"failed":["halverson_dispute_01","halverson_dispute_02","halverson_dispute_03","halverson_dispute_04","halverson_dispute_05"]},"easton_amendment":{"correct":3,"total":4,"failed":["easton_amendment_02"]},"vendor_autorenew":{"correct":2,"total":4,"failed":["vendor_autorenew_02","vendor_autorenew_04"]}}},{"label":"gpt-5.4-nano","chains":{"halverson_dispute":{"correct":3,"total":5,"failed":["halverson_dispute_04","halverson_dispute_05"]},"easton_amendment":{"correct":4,"total":4,"failed":[]},"vendor_autorenew":{"correct":2,"total":4,"failed":["vendor_autorenew_02","vendor_autorenew_04"]}}},{"label":"gpt-5.4-mini","chains":{"halverson_dispute":{"correct":3,"total":5,"failed":["halverson_dispute_02","halverson_dispute_05"]},"easton_amendment":{"correct":4,"total":4,"failed":[]},"vendor_autorenew":{"correct":3,"total":4,"failed":["vendor_autorenew_04"]}}},{"label":"gpt-5.5","chains":{"halverson_dispute":{"correct":3,"total":5,"failed":["halverson_dispute_01","halverson_dispute_02"]},"easton_amendment":{"correct":3,"total":4,"failed":["easton_amendment_02"]},"vendor_autorenew":{"correct":3,"total":4,"failed":["vendor_autorenew_02"]}}},{"label":"claude-haiku-4-5","chains":{"halverson_dispute":{"correct":2,"total":5,"failed":["halverson_dispute_01","halverson_dispute_02","halverson_dispute_05"]},"easton_amendment":{"correct":3,"total":4,"failed":["easton_amendment_04"]},"vendor_autorenew":{"correct":2,"total":4,"failed":["vendor_autorenew_02","vendor_autorenew_04"]}}},{"label":"claude-sonnet-4-6","chains":{"halverson_dispute":{"correct":2,"total":5,"failed":["halverson_dispute_02","halverson_dispute_03","halverson_dispute_04"]},"easton_amendment":{"correct":4,"total":4,"failed":[]},"vendor_autorenew":{"correct":2,"total":4,"failed":["vendor_autorenew_02","vendor_autorenew_04"]}}},{"label":"claude-opus-4-6","chains":{"halverson_dispute":{"correct":3,"total":5,"failed":["halverson_dispute_02","halverson_dispute_05"]},"easton_amendment":{"correct":3,"total":4,"failed":["easton_amendment_02"]},"vendor_autorenew":{"correct":2,"total":4,"failed":["vendor_autorenew_02","vendor_autorenew_04"]}}},{"label":"claude-opus-4-8","chains":{"halverson_dispute":{"correct":2,"total":5,"failed":["halverson_dispute_01","halverson_dispute_02","halverson_dispute_05"]},"easton_amendment":{"correct":3,"total":4,"failed":["easton_amendment_02"]},"vendor_autorenew":{"correct":3,"total":4,"failed":["vendor_autorenew_02"]}}},{"label":"Fable 5 (low)","chains":{"halverson_dispute":{"correct":3,"total":5,"failed":["halverson_dispute_01","halverson_dispute_02"]},"easton_amendment":{"correct":3,"total":4,"failed":["easton_amendment_02"]},"vendor_autorenew":{"correct":4,"total":4,"failed":[]}}},{"label":"Fable 5 (medium)","chains":{"halverson_dispute":{"correct":3,"total":5,"failed":["halverson_dispute_01","halverson_dispute_02"]},"easton_amendment":{"correct":3,"total":4,"failed":["easton_amendment_02"]},"vendor_autorenew":{"correct":4,"total":4,"failed":[]}}},{"label":"Fable 5 (high)","chains":{"halverson_dispute":{"correct":3,"total":5,"failed":["halverson_dispute_01","halverson_dispute_02"]},"easton_amendment":{"correct":3,"total":4,"failed":["easton_amendment_02"]},"vendor_autorenew":{"correct":3,"total":4,"failed":["vendor_autorenew_02"]}}},{"label":"gemma4:12b","chains":{"halverson_dispute":{"correct":0,"total":5,"failed":["halverson_dispute_01","halverson_dispute_02","halverson_dispute_03","halverson_dispute_04","halverson_dispute_05"]},"easton_amendment":{"correct":2,"total":4,"failed":["easton_amendment_02","easton_amendment_04"]},"vendor_autorenew":{"correct":0,"total":4,"failed":["vendor_autorenew_01","vendor_autorenew_02","vendor_autorenew_03","vendor_autorenew_04"]}}}],"task_difficulty":[{"task_id":"halverson_dispute_01","scenario":"halverson_dispute","n_pass":4,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"halverson_dispute_02","scenario":"halverson_dispute","n_pass":1,"n_configs":12,"is_parallel":true,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"halverson_dispute_03","scenario":"halverson_dispute","n_pass":9,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"halverson_dispute_04","scenario":"halverson_dispute","n_pass":8,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"halverson_dispute_05","scenario":"halverson_dispute","n_pass":5,"n_configs":12,"is_parallel":false,"is_alt":true,"is_floor":false,"is_chain":true},{"task_id":"easton_amendment_01","scenario":"easton_amendment","n_pass":12,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"easton_amendment_02","scenario":"easton_amendment","n_pass":4,"n_configs":12,"is_parallel":false,"is_alt":true,"is_floor":false,"is_chain":true},{"task_id":"easton_amendment_03","scenario":"easton_amendment","n_pass":12,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"easton_amendment_04","scenario":"easton_amendment","n_pass":10,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"vendor_autorenew_01","scenario":"vendor_autorenew","n_pass":11,"n_configs":12,"is_parallel":false,"is_alt":true,"is_floor":false,"is_chain":true},{"task_id":"vendor_autorenew_02","scenario":"vendor_autorenew","n_pass":3,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"vendor_autorenew_03","scenario":"vendor_autorenew","n_pass":11,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"vendor_autorenew_04","scenario":"vendor_autorenew","n_pass":5,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":true},{"task_id":"corvid_fetch_01","scenario":"corvid_fetch","n_pass":12,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":true,"is_chain":false},{"task_id":"stonebridge_term_01","scenario":"stonebridge_term","n_pass":8,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":true,"is_chain":false},{"task_id":"nda_inventory_01","scenario":"nda_inventory","n_pass":12,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":true,"is_chain":false},{"task_id":"q1_2025_inventory_01","scenario":"q1_2025_inventory","n_pass":12,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":true,"is_chain":false},{"task_id":"nonsolicit_search_01","scenario":"nonsolicit_search","n_pass":12,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":true,"is_chain":false},{"task_id":"termination_topk_01","scenario":"termination_topk","n_pass":12,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":true,"is_chain":false},{"task_id":"vendor_renewal_decompose_01","scenario":"vendor_renewal_decompose","n_pass":2,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":false},{"task_id":"vendor_indemnification_2024_01","scenario":"vendor_indemnification_2024","n_pass":11,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":false},{"task_id":"halverson_sow_sla_01","scenario":"halverson_sow_sla","n_pass":8,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":false},{"task_id":"okafor_leases_01","scenario":"okafor_leases","n_pass":11,"n_configs":12,"is_parallel":false,"is_alt":false,"is_floor":false,"is_chain":false}],"per_config_task_scores":{"gpt-4o-mini":{"halverson_dispute_01":0,"halverson_dispute_02":0,"halverson_dispute_03":0,"halverson_dispute_04":0,"halverson_dispute_05":0,"easton_amendment_01":1,"easton_amendment_02":0,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":0,"vendor_autorenew_03":1,"vendor_autorenew_04":0,"corvid_fetch_01":1,"stonebridge_term_01":0,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":1,"okafor_leases_01":1},"gpt-5.4-nano":{"halverson_dispute_01":1,"halverson_dispute_02":1,"halverson_dispute_03":1,"halverson_dispute_04":0,"halverson_dispute_05":0,"easton_amendment_01":1,"easton_amendment_02":1,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":0,"vendor_autorenew_03":1,"vendor_autorenew_04":0,"corvid_fetch_01":1,"stonebridge_term_01":1,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":0,"okafor_leases_01":0},"gpt-5.4-mini":{"halverson_dispute_01":1,"halverson_dispute_02":0,"halverson_dispute_03":1,"halverson_dispute_04":1,"halverson_dispute_05":0,"easton_amendment_01":1,"easton_amendment_02":1,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":1,"vendor_autorenew_03":1,"vendor_autorenew_04":0,"corvid_fetch_01":1,"stonebridge_term_01":1,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":0,"halverson_sow_sla_01":0,"okafor_leases_01":1},"gpt-5.5":{"halverson_dispute_01":0,"halverson_dispute_02":0,"halverson_dispute_03":1,"halverson_dispute_04":1,"halverson_dispute_05":1,"easton_amendment_01":1,"easton_amendment_02":0,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":0,"vendor_autorenew_03":1,"vendor_autorenew_04":1,"corvid_fetch_01":1,"stonebridge_term_01":1,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":1,"okafor_leases_01":1},"claude-haiku-4-5":{"halverson_dispute_01":0,"halverson_dispute_02":0,"halverson_dispute_03":1,"halverson_dispute_04":1,"halverson_dispute_05":0,"easton_amendment_01":1,"easton_amendment_02":1,"easton_amendment_03":1,"easton_amendment_04":0,"vendor_autorenew_01":1,"vendor_autorenew_02":0,"vendor_autorenew_03":1,"vendor_autorenew_04":0,"corvid_fetch_01":1,"stonebridge_term_01":1,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":0,"okafor_leases_01":1},"claude-sonnet-4-6":{"halverson_dispute_01":1,"halverson_dispute_02":0,"halverson_dispute_03":0,"halverson_dispute_04":0,"halverson_dispute_05":1,"easton_amendment_01":1,"easton_amendment_02":1,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":0,"vendor_autorenew_03":1,"vendor_autorenew_04":0,"corvid_fetch_01":1,"stonebridge_term_01":0,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":1,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":1,"okafor_leases_01":1},"claude-opus-4-6":{"halverson_dispute_01":1,"halverson_dispute_02":0,"halverson_dispute_03":1,"halverson_dispute_04":1,"halverson_dispute_05":0,"easton_amendment_01":1,"easton_amendment_02":0,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":0,"vendor_autorenew_03":1,"vendor_autorenew_04":0,"corvid_fetch_01":1,"stonebridge_term_01":1,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":1,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":1,"okafor_leases_01":1},"claude-opus-4-8":{"halverson_dispute_01":0,"halverson_dispute_02":0,"halverson_dispute_03":1,"halverson_dispute_04":1,"halverson_dispute_05":0,"easton_amendment_01":1,"easton_amendment_02":0,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":0,"vendor_autorenew_03":1,"vendor_autorenew_04":1,"corvid_fetch_01":1,"stonebridge_term_01":0,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":1,"okafor_leases_01":1},"Fable 5 (low)":{"halverson_dispute_01":0,"halverson_dispute_02":0,"halverson_dispute_03":1,"halverson_dispute_04":1,"halverson_dispute_05":1,"easton_amendment_01":1,"easton_amendment_02":0,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":1,"vendor_autorenew_03":1,"vendor_autorenew_04":1,"corvid_fetch_01":1,"stonebridge_term_01":1,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":1,"okafor_leases_01":1},"Fable 5 (medium)":{"halverson_dispute_01":0,"halverson_dispute_02":0,"halverson_dispute_03":1,"halverson_dispute_04":1,"halverson_dispute_05":1,"easton_amendment_01":1,"easton_amendment_02":0,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":1,"vendor_autorenew_03":1,"vendor_autorenew_04":1,"corvid_fetch_01":1,"stonebridge_term_01":1,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":1,"okafor_leases_01":1},"Fable 5 (high)":{"halverson_dispute_01":0,"halverson_dispute_02":0,"halverson_dispute_03":1,"halverson_dispute_04":1,"halverson_dispute_05":1,"easton_amendment_01":1,"easton_amendment_02":0,"easton_amendment_03":1,"easton_amendment_04":1,"vendor_autorenew_01":1,"vendor_autorenew_02":0,"vendor_autorenew_03":1,"vendor_autorenew_04":1,"corvid_fetch_01":1,"stonebridge_term_01":1,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":1,"okafor_leases_01":1},"gemma4:12b":{"halverson_dispute_01":0,"halverson_dispute_02":0,"halverson_dispute_03":0,"halverson_dispute_04":0,"halverson_dispute_05":0,"easton_amendment_01":1,"easton_amendment_02":0,"easton_amendment_03":1,"easton_amendment_04":0,"vendor_autorenew_01":0,"vendor_autorenew_02":0,"vendor_autorenew_03":0,"vendor_autorenew_04":0,"corvid_fetch_01":1,"stonebridge_term_01":0,"nda_inventory_01":1,"q1_2025_inventory_01":1,"nonsolicit_search_01":1,"termination_topk_01":1,"vendor_renewal_decompose_01":0,"vendor_indemnification_2024_01":1,"halverson_sow_sla_01":0,"okafor_leases_01":1}},"prior_run_june10":[{"label":"Sonnet 4.6","score":14,"n":15,"cpc":0.0073},{"label":"Opus 4.6","score":13,"n":15,"cpc":0.0139},{"label":"GPT-4o-mini","score":12,"n":15,"cpc":0.00018},{"label":"GPT-5.4 nano","score":12,"n":15,"cpc":0.00031},{"label":"Gemma 4 12B","score":11,"n":15,"cpc":0.0},{"label":"Haiku 4.5","score":11,"n":15,"cpc":0.0032},{"label":"Fable 5 (low=med=high)","score":10,"n":15,"cpc":0.037},{"label":"GPT-5.5","score":10,"n":15,"cpc":0.0106},{"label":"GPT-5.4 mini","score":10,"n":15,"cpc":0.0013},{"label":"Opus 4.8","score":10,"n":15,"cpc":0.0192}]}
+</script>
+<script>
+"use strict";
+const DATA = JSON.parse(document.getElementById('data-blob').textContent);
+
+const COLORS = { openai: '#10a37f', anthropic: '#d97757', ollama: '#7c6cf0' };
+const provColor = p => COLORS[p] || '#888';
+const fmtUsd = v => v === 0 ? '$0' : (v < 0.001 ? '$' + v.toFixed(6) : '$' + v.toFixed(v < 0.01 ? 5 : v < 1 ? 4 : 2));
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function el(tag, attrs, text) {
+  const e = document.createElementNS(SVGNS, tag);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  return e;
+}
+function card(num, title, insightHTML, opts) {
+  const c = document.createElement('div');
+  c.className = 'card' + (opts && opts.wide ? ' wide' : '');
+  const h = document.createElement('h2');
+  h.innerHTML = '<span class="chartnum">' + num + '</span>' + title;
+  c.appendChild(h);
+  const ins = document.createElement('div');
+  ins.className = 'insight';
+  ins.innerHTML = insightHTML;
+  c.appendChild(ins);
+  document.getElementById('main').appendChild(c);
+  return c;
+}
+
+// ---------- header ----------
+document.getElementById('subhead').textContent =
+  DATA.meta.date + '  ·  ' + DATA.meta.n_configs + ' model configs  ·  ' +
+  DATA.meta.n_tasks + '-task hardened dataset  ·  ' + DATA.meta.dataset;
+document.getElementById('footer').innerHTML =
+  'Distractor tools (never the correct answer): ' +
+  DATA.meta.distractor_tools.map(t => '<code>' + t + '</code>').join(', ') +
+  '. &nbsp; Chains: ' + Object.entries(DATA.meta.chains).map(([k,v]) => k + ' (' + v + ')').join(', ') +
+  '. &nbsp; ' + DATA.meta.note;
+
+const N = DATA.meta.n_tasks;
+
+// ============================================================
+// CHART 1 — Quality vs Cost scatter (log x), with frontier
+// ============================================================
+(function () {
+  const c = card('01', 'Quality vs Cost — the money chart',
+    'x = total run cost (<b>log scale</b>), y = accuracy (score/' + N + '). Points colored by provider. ' +
+    'The dashed line is the <b>cost-efficient frontier</b>: no config is both cheaper and more accurate than a frontier point. ' +
+    '<b>gpt-5.4-nano</b> sits at the knee — near-top accuracy for a fraction of a cent; Anthropic configs buy marginal accuracy at 50–100× the cost. gemma is free but lowest quality.',
+    {wide:true});
+
+  const W = 1100, H = 420, m = {t: 20, r: 30, b: 55, l: 60};
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const svg = el('svg', {viewBox: `0 0 ${W} ${H}`});
+  const g = el('g', {transform: `translate(${m.l},${m.t})`});
+  svg.appendChild(g);
+
+  const pts = DATA.configs.map(d => ({...d, acc: d.score / N}));
+  // log x; treat $0 (gemma) as a pinned leftmost decade
+  const costs = pts.map(p => p.total_cost_usd).filter(v => v > 0);
+  const minC = Math.min(...costs), maxC = Math.max(...costs);
+  const lx0 = Math.log10(minC) - 0.35, lx1 = Math.log10(maxC) + 0.18;
+  const xZero = 0; // pixel slot for $0
+  const xPlot = x => m.l===0?0:0; // unused
+  const sx = c2 => c2 <= 0 ? 12 : 40 + (iw - 40) * (Math.log10(c2) - lx0) / (lx1 - lx0);
+  const sy = a => ih - (a) * ih; // 0..1 -> full height (0 at bottom)
+
+  // grid + y ticks (accuracy)
+  for (let i = 0; i <= 5; i++) {
+    const a = i / 5;
+    const y = sy(a);
+    g.appendChild(el('line', {class:'', x1:0, y1:y, x2:iw, y2:y, stroke:'#20262f', 'stroke-dasharray':'2 3'}));
+    g.appendChild(el('text', {x:-10, y:y+3, 'text-anchor':'end', class:'tick'}, (a*100).toFixed(0)+'%'));
+  }
+  // x ticks (log decades)
+  [0.001, 0.01, 0.1, 1].forEach(v => {
+    if (Math.log10(v) < lx0 || Math.log10(v) > lx1) return;
+    const x = sx(v);
+    g.appendChild(el('line', {x1:x, y1:0, x2:x, y2:ih, stroke:'#20262f', 'stroke-dasharray':'2 3'}));
+    g.appendChild(el('text', {x:x, y:ih+18, 'text-anchor':'middle', class:'tick'}, fmtUsd(v)));
+  });
+  // $0 slot tick
+  g.appendChild(el('text', {x:12, y:ih+18, 'text-anchor':'middle', class:'tick'}, '$0'));
+  // axis labels
+  g.appendChild(el('text', {x:iw/2, y:ih+44, 'text-anchor':'middle', class:'axis-label'}, 'Total run cost (USD, log scale)'));
+  g.appendChild(el('text', {x:-42, y:ih/2, 'text-anchor':'middle', class:'axis-label', transform:`rotate(-90 -42 ${ih/2})`}, 'Accuracy (score / ' + N + ')'));
+
+  // frontier: among paid configs, points not dominated (cheaper AND higher acc)
+  const sorted = [...pts].sort((a,b) => a.total_cost_usd - b.total_cost_usd);
+  const frontier = [];
+  let bestAcc = -1;
+  for (const p of sorted) {
+    if (p.acc > bestAcc) { frontier.push(p); bestAcc = p.acc; }
+  }
+  // frontier path
+  let dPath = '';
+  frontier.forEach((p, i) => {
+    const x = sx(p.total_cost_usd), y = sy(p.acc);
+    dPath += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+  });
+  g.appendChild(el('path', {d:dPath, fill:'none', stroke:'#58a6ff', 'stroke-width':1.6, 'stroke-dasharray':'5 4', opacity:0.7}));
+
+  // points
+  pts.forEach(p => {
+    const x = sx(p.total_cost_usd), y = sy(p.acc);
+    const col = provColor(p.provider);
+    const onFront = frontier.includes(p);
+    g.appendChild(el('circle', {cx:x, cy:y, r:onFront?7:5.5, fill:col, stroke:onFront?'#fff':'#0d1117', 'stroke-width':onFront?1.6:1, opacity:0.95}));
+    // label
+    const lbl = el('text', {x:x+10, y:y+3.5, class:'pt-label', fill:'#cdd6e0'}, p.label);
+    // nudge crowded left cluster
+    if (p.total_cost_usd < 0.03 && p.total_cost_usd > 0) lbl.setAttribute('y', y - 8);
+    g.appendChild(lbl);
+  });
+
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 2 — Score ranking (horizontal bars)
+// ============================================================
+(function () {
+  const c = card('02', 'Score ranking — tasks solved (of ' + N + ')',
+    'Configs sorted by raw score. <b>Fable 5 (low/med)</b> top the board at 19/' + N + '; <b>gemma4:12b</b> floors at 9. ' +
+    'Note OpenAI delivers competitive scores (gpt-5.5 & gpt-5.4-mini at 17–18) — quality is not provider-locked.');
+
+  const rows = [...DATA.configs].sort((a,b) => b.score - a.score || b.accuracy - a.accuracy);
+  const W = 540, rowH = 26, m = {t:6, r:48, b:8, l:128};
+  const H = m.t + m.b + rows.length * rowH;
+  const iw = W - m.l - m.r;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  const maxV = N;
+  rows.forEach((d, i) => {
+    const y = m.t + i*rowH;
+    const bw = iw * (d.score / maxV);
+    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, d.label));
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:iw, height:rowH-10, fill:'#1c2330', rx:3}));
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:provColor(d.provider), rx:3}));
+    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, d.score + '/' + N));
+  });
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 3 — CPC ranking (log)
+// ============================================================
+(function () {
+  const c = card('03', 'CPC ranking — cost per correct task (log)',
+    'Lower is better. <b>gpt-5.4-nano is the efficiency king</b> among paid configs at ' + fmtUsd(0.000476) + '/correct — ' +
+    'gpt-4o-mini is marginally cheaper but solves 3 fewer tasks. <b>gemma4:12b runs at $0</b> (local) but quality lags. ' +
+    'Frontier Anthropic configs cost 50–90× more per correct answer.');
+
+  // exclude gemma (0) from log bars; annotate separately
+  const paid = DATA.configs.filter(d => d.cpc_usd > 0).sort((a,b) => a.cpc_usd - b.cpc_usd);
+  const W = 540, rowH = 26, m = {t:6, r:70, b:22, l:128};
+  const H = m.t + m.b + (paid.length+1) * rowH;
+  const iw = W - m.l - m.r;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  const minV = Math.min(...paid.map(d=>d.cpc_usd)), maxV = Math.max(...paid.map(d=>d.cpc_usd));
+  const l0 = Math.log10(minV)-0.05, l1 = Math.log10(maxV)+0.05;
+  const sx = v => iw * (Math.log10(v) - l0) / (l1 - l0);
+  paid.forEach((d, i) => {
+    const y = m.t + i*rowH;
+    const bw = Math.max(2, sx(d.cpc_usd));
+    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, d.label));
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:provColor(d.provider), rx:3}));
+    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, fmtUsd(d.cpc_usd)));
+    if (i===0) svg.appendChild(el('text', {x:m.l+bw+44, y:y+rowH/2+4, class:'bar-val', fill:'#3fb950'}, '◀ king'));
+  });
+  // gemma row
+  const gy = m.t + paid.length*rowH;
+  const gemma = DATA.configs.find(d=>d.provider==='ollama');
+  svg.appendChild(el('text', {x:m.l-8, y:gy+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, gemma.label));
+  svg.appendChild(el('rect', {x:m.l, y:gy+4, width:3, height:rowH-10, fill:provColor('ollama'), rx:3}));
+  svg.appendChild(el('text', {x:m.l+10, y:gy+rowH/2+4, class:'bar-val', fill:'#7c6cf0'}, '$0 (local, off-scale)'));
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 4 — Parallel task strip
+// ============================================================
+(function () {
+  const c = card('04', 'Parallel-invocation task · halverson_dispute_02',
+    'Only <b>1 of 12</b> configs passed. The task needs <b>two parallel <code>search</code> calls</b>; the dominant failure mode is ' +
+    'collapsing to <b>two <code>list_documents</code></b> (metadata-only, wrong tool). <b>gpt-5.4-nano</b> over-fires (4 searches) but matches both specs and passes. ' +
+    'gemma emitted no tool call at all.', {wide:true});
+
+  const pc = DATA.parallel_task.per_config;
+  const tbl = document.createElement('table');
+  tbl.className = 'matrix';
+  const tr = document.createElement('tr');
+  pc.forEach(d => {
+    const th = document.createElement('th'); th.textContent = d.label; tr.appendChild(th);
+  });
+  tbl.appendChild(tr);
+  const tr2 = document.createElement('tr');
+  pc.forEach(d => {
+    const td = document.createElement('td'); td.className='cell';
+    const wrap = document.createElement('div'); wrap.className='stripcell';
+    const pf = document.createElement('div');
+    pf.className = 'pf ' + (d.pass ? 'pass' : 'fail');
+    pf.textContent = d.pass ? '✓' : '✗';
+    wrap.appendChild(pf);
+    const mc = document.createElement('div'); mc.className='bar-val'; mc.style.fontSize='10px';
+    mc.textContent = d.matched + '/' + d.expected;
+    wrap.appendChild(mc);
+    const calls = document.createElement('div'); calls.className='calls';
+    calls.textContent = d.calls.length ? d.calls.map(x=>x==='list_documents'?'list':x).join(' + ') : '(none)';
+    wrap.appendChild(calls);
+    td.appendChild(wrap);
+    tr2.appendChild(td);
+  });
+  tbl.appendChild(tr2);
+  c.appendChild(tbl);
+})();
+
+// ============================================================
+// CHART 5 — Distractor picks
+// ============================================================
+(function () {
+  const picked = DATA.distractor_picks;
+  const allConfigs = DATA.configs.map(d=>d.label);
+  const c = card('05', 'Distractor-tool picks · the saturation canary',
+    '<b>' + picked.length + ' of 12</b> configs reached for a distractor; <b>every pick was <code>summarize_document</code></b> ' +
+    '(the near-miss that shadows <code>get_document</code>). <code>search_history</code> and the 3 categorically-wrong distractors drew <b>zero</b>. ' +
+    'The June-10 run had <b>zero distractor picks total</b> — the hardened near-miss tools are now successfully baiting models. ' +
+    'claude-sonnet-4-6 is the worst offender (5 tasks, 11 calls).');
+
+  const W = 540, m={t:10,r:24,b:24,l:128};
+  const rows = allConfigs;
+  const rowH = 24;
+  const H = m.t+m.b+rows.length*rowH;
+  const iw = W-m.l-m.r;
+  // max total picks for scaling
+  const byLabel = {};
+  picked.forEach(p => byLabel[p.label] = p);
+  const totals = rows.map(l => byLabel[l] ? byLabel[l].picks.reduce((s,x)=>s+x.count,0) : 0);
+  const maxTot = Math.max(1, ...totals);
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  rows.forEach((label, i) => {
+    const conf = DATA.configs.find(d=>d.label===label);
+    const y = m.t+i*rowH;
+    const p = byLabel[label];
+    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, label));
+    if (!p) {
+      svg.appendChild(el('text', {x:m.l+4, y:y+rowH/2+4, class:'bar-val', fill:'#3fb950'}, '— clean —'));
+      return;
+    }
+    const tot = p.picks.reduce((s,x)=>s+x.count,0);
+    const ntasks = p.picks.length;
+    const bw = iw*(tot/maxTot);
+    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:'#f85149', rx:3, opacity:0.85}));
+    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'},
+      tot + ' calls · ' + ntasks + ' task' + (ntasks>1?'s':'') + ' (' + p.picks.map(x=>x.task.replace(/_0\d$/,m=>m)).map(t=>t).join(', ') + ')'));
+  });
+  c.appendChild(svg);
+  // note line
+  const note = document.createElement('div');
+  note.className='insight';
+  note.style.marginTop='12px';
+  note.style.borderLeftColor='#f85149';
+  note.innerHTML = 'Red bar length = total distractor calls (scaled). All distractor picks = <code>summarize_document</code>.';
+  c.appendChild(note);
+})();
+
+// ============================================================
+// CHART 6 — Per-chain heatmap
+// ============================================================
+(function () {
+  const c = card('06', 'Per-chain performance heatmap',
+    'Rows = configs, columns = the 3 multi-step chains, cell = correct/total (color intensity = fraction solved). ' +
+    '<b>halverson_dispute (5 steps) is the wall</b> — best result is 3/5, nobody clears it; it carries the parallel task at step 2. ' +
+    'easton_amendment and vendor_autorenew are more tractable (several 4/4 sweeps).', {wide:true});
+
+  const chains = Object.keys(DATA.meta.chains);
+  const cpc = DATA.chains_per_config;
+  const tbl = document.createElement('table');
+  tbl.className='matrix';
+  const head = document.createElement('tr');
+  head.appendChild(document.createElement('th'));
+  chains.forEach(ch => {
+    const th=document.createElement('th'); th.textContent = ch + ' (' + DATA.meta.chains[ch] + ')'; head.appendChild(th);
+  });
+  tbl.appendChild(head);
+  cpc.forEach(row => {
+    const tr = document.createElement('tr');
+    const rl = document.createElement('td'); rl.className='rowlabel';
+    const conf = DATA.configs.find(d=>d.label===row.label);
+    rl.innerHTML = '<span class="swatch" style="background:'+provColor(conf.provider)+'; margin-right:7px; vertical-align:middle;"></span>' + row.label;
+    tr.appendChild(rl);
+    chains.forEach(ch => {
+      const cell = row.chains[ch];
+      const frac = cell.correct/cell.total;
+      const td = document.createElement('td'); td.className='cell';
+      const box = document.createElement('div'); box.className='cellbox';
+      // green ramp
+      const alpha = 0.12 + frac*0.88;
+      box.style.background = `rgba(63,185,80,${alpha})`;
+      box.style.color = frac > 0.5 ? '#06210e' : '#cdd6e0';
+      box.textContent = cell.correct + '/' + cell.total;
+      if (cell.correct === 0) { box.style.background='#241416'; box.style.color='#f85149'; }
+      td.appendChild(box);
+      tr.appendChild(td);
+    });
+    tbl.appendChild(tr);
+  });
+  c.appendChild(tbl);
+})();
+
+// ============================================================
+// CHART 7 — Task difficulty
+// ============================================================
+(function () {
+  const c = card('07', 'Task difficulty · configs passing each task (of 12)',
+    'Floor tasks (green-marked) are solved by all 12 — the easy baseline. Discriminators (≤5/12) are where CPC means something. ' +
+    'The hardest: <b>halverson_dispute_02</b> (parallel, 1/12) and <b>vendor_renewal_decompose_01</b> (2/12, decompose). ' +
+    '<span class="tag par">PAR</span> = parallel, <span class="tag alt">ALT</span> = adjudicated alternative, <span class="tag floor">FLOOR</span> = baseline floor.',
+    {wide:true});
+
+  const tasks = [...DATA.task_difficulty].sort((a,b) => a.n_pass - b.n_pass);
+  const W = 1100, m={t:10,r:40,b:8,l:230};
+  const rowH = 21;
+  const H = m.t+m.b+tasks.length*rowH;
+  const iw = W-m.l-m.r;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  // gridlines for thresholds
+  [5, 12].forEach(v => {
+    const x = m.l + iw*(v/12);
+    svg.appendChild(el('line', {x1:x,y1:m.t-2,x2:x,y2:H-m.b, stroke:'#2a3340','stroke-dasharray':'3 3'}));
+    svg.appendChild(el('text', {x:x, y:m.t-3, 'text-anchor':'middle', class:'tick', fill:'#5a6675'}, v));
+  });
+  tasks.forEach((t,i) => {
+    const y = m.t+i*rowH;
+    const bw = iw*(t.n_pass/12);
+    let col = '#f85149';
+    if (t.n_pass === 12) col = '#3fb950';
+    else if (t.n_pass >= 9) col = '#7ee787';
+    else if (t.n_pass >= 6) col = '#d29922';
+    // label + tags
+    const labelG = el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label', 'font-size':'11px'}, t.task_id);
+    svg.appendChild(labelG);
+    svg.appendChild(el('rect', {x:m.l, y:y+3, width:iw, height:rowH-7, fill:'#1c2330', rx:2}));
+    svg.appendChild(el('rect', {x:m.l, y:y+3, width:bw, height:rowH-7, fill:col, rx:2, opacity:0.92}));
+    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, t.n_pass + '/12'));
+    // tags after value
+    let tx = m.l + iw + 4;
+    const tags = [];
+    if (t.is_parallel) tags.push(['PAR','#58a6ff','rgba(88,166,255,0.18)']);
+    if (t.is_alt) tags.push(['ALT','#d29922','rgba(210,153,34,0.18)']);
+    if (t.is_floor) tags.push(['FLR','#3fb950','rgba(63,185,80,0.15)']);
+    // draw tags as small rects to the right of label area instead (left side)
+    let lx = m.l - 8 - (t.task_id.length*5.6) - 6;
+    tags.forEach(([txt,fg,bg]) => {
+      lx -= 30;
+      svg.appendChild(el('rect', {x:lx, y:y+5, width:26, height:rowH-11, rx:3, fill:bg}));
+      svg.appendChild(el('text', {x:lx+13, y:y+rowH/2+3.5, 'text-anchor':'middle', 'font-size':'8.5px', 'font-weight':'700', fill:fg}, txt));
+    });
+  });
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 8 — Before / After
+// ============================================================
+(function () {
+  const c = card('08', 'Before / After · the hardening widened the spread',
+    'June-10 (15 tasks): everyone scored <b>10–14</b>, range <b>4</b> — saturated, indistinguishable. ' +
+    'June-12 (23 tasks, hardened): scores spread <b>9–19</b>, range <b>10</b>. ' +
+    'A wider spread means the benchmark now discriminates — CPC differences are signal, not noise. ' +
+    '(Scores shown as accuracy % since task counts differ.)', {wide:true});
+
+  const prior = DATA.prior_run_june10.map(d => ({label:d.label, acc:d.score/d.n}));
+  const now = DATA.configs.map(d => ({label:d.label, acc:d.score/N}));
+  const W=1100, H=200, m={t:30,r:30,b:50,l:60};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
+  const g = el('g', {transform:`translate(${m.l},${m.t})`});
+  svg.appendChild(g);
+  const lanes = [
+    {name:'June 10 · 15 tasks · range 4', y: ih*0.28, data: prior, lo: Math.min(...prior.map(d=>d.acc)), hi: Math.max(...prior.map(d=>d.acc))},
+    {name:'June 12 · 23 tasks · range 10', y: ih*0.78, data: now, lo: Math.min(...now.map(d=>d.acc)), hi: Math.max(...now.map(d=>d.acc))},
+  ];
+  const sx = a => iw*a;
+  // axis
+  for (let i=0;i<=5;i++){
+    const a=i/5; const x=sx(a);
+    g.appendChild(el('line',{x1:x,y1:-6,x2:x,y2:ih,stroke:'#20262f','stroke-dasharray':'2 3'}));
+    g.appendChild(el('text',{x:x,y:ih+18,'text-anchor':'middle',class:'tick'},(a*100).toFixed(0)+'%'));
+  }
+  g.appendChild(el('text',{x:iw/2,y:ih+40,'text-anchor':'middle',class:'axis-label'},'Accuracy (score / task count)'));
+  lanes.forEach(lane => {
+    // spread band
+    g.appendChild(el('rect',{x:sx(lane.lo), y:lane.y-9, width:sx(lane.hi)-sx(lane.lo), height:18, fill:'#58a6ff', opacity:0.10, rx:9}));
+    g.appendChild(el('line',{x1:sx(lane.lo),y1:lane.y,x2:sx(lane.hi),y2:lane.y,stroke:'#3a4453','stroke-width':2}));
+    g.appendChild(el('text',{x:0,y:lane.y-16,class:'axis-label','font-size':'11.5px',fill:'#cdd6e0'},lane.name));
+    lane.data.forEach(d => {
+      g.appendChild(el('circle',{cx:sx(d.acc),cy:lane.y,r:5,fill:'#58a6ff',stroke:'#0d1117','stroke-width':1,opacity:0.85}));
+    });
+    // range bracket label
+    g.appendChild(el('text',{x:sx(lane.hi)+8,y:lane.y+4,class:'bar-val'}, 'spread ' + ((lane.hi-lane.lo)*100).toFixed(0) + ' pts'));
+  });
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 9 — Fable effort frontier
+// ============================================================
+(function () {
+  const c = card('09', 'Fable 5 effort frontier · cost rises, quality does not',
+    'Sweeping the effort knob low → med → high: <b>output tokens (2586→3144→3800)</b> and <b>cost rise monotonically</b>, ' +
+    'but <b>score is flat-to-down (19 → 19 → 18)</b>. The effort knob moves cost, not quality — high effort is a strict regression here. ' +
+    'Optimal setting for this benchmark is <b>low</b>.');
+
+  const fable = DATA.configs.filter(d => d.model === 'claude-fable-5')
+    .sort((a,b) => ({low:0,medium:1,high:2}[a.effort] - {low:0,medium:1,high:2}[b.effort]));
+  const W=540,H=300,m={t:24,r:54,b:46,l:54};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
+  const g=el('g',{transform:`translate(${m.l},${m.t})`});
+  svg.appendChild(g);
+  const xs = fable.map((d,i)=> iw*(i/(fable.length-1)));
+  // left axis: tokens & cost (normalized separately, plotted as two lines); right axis score
+  const maxTok = Math.max(...fable.map(d=>d.output_tokens));
+  const maxCost = Math.max(...fable.map(d=>d.total_cost_usd));
+  const syTok = v => ih - (v/maxTok)*ih*0.92;
+  const syCost = v => ih - (v/maxCost)*ih*0.92;
+  const syScore = v => ih - ((v-17)/(20-17))*ih*0.9; // score band 17..20
+
+  for(let i=0;i<=4;i++){ const y=ih*i/4; g.appendChild(el('line',{x1:0,y1:y,x2:iw,y2:y,stroke:'#20262f','stroke-dasharray':'2 3'})); }
+  fable.forEach((d,i)=> g.appendChild(el('text',{x:xs[i],y:ih+18,'text-anchor':'middle',class:'tick'}, d.effort)));
+  g.appendChild(el('text',{x:iw/2,y:ih+38,'text-anchor':'middle',class:'axis-label'},'Reasoning effort'));
+
+  function line(accessor, sc, color, label, dash) {
+    let d='';
+    fable.forEach((row,i)=> d += (i?'L':'M')+xs[i]+' '+sc(accessor(row))+' ');
+    g.appendChild(el('path',{d, fill:'none', stroke:color, 'stroke-width':2, 'stroke-dasharray':dash||''}));
+    fable.forEach((row,i)=>{
+      g.appendChild(el('circle',{cx:xs[i],cy:sc(accessor(row)),r:4,fill:color,stroke:'#0d1117'}));
+    });
+    return color;
+  }
+  line(d=>d.output_tokens, syTok, '#d97757', 'output tokens');
+  line(d=>d.total_cost_usd, syCost, '#f0a868', 'cost', '4 3');
+  line(d=>d.score, syScore, '#3fb950', 'score');
+
+  // value annotations
+  fable.forEach((d,i)=>{
+    g.appendChild(el('text',{x:xs[i],y:syTok(d.output_tokens)-8,'text-anchor':'middle','font-size':'9.5px',fill:'#d97757'}, d.output_tokens));
+    g.appendChild(el('text',{x:xs[i],y:syScore(d.score)-8,'text-anchor':'middle','font-size':'9.5px',fill:'#3fb950','font-weight':'700'}, d.score));
+  });
+  // mini legend
+  const leg = [['output tokens','#d97757'],['cost','#f0a868'],['score (17–20)','#3fb950']];
+  leg.forEach(([t,col],i)=>{
+    const ly = -8 + i*0; const lx = i*0;
+    const gx = i* (iw/3);
+    g.appendChild(el('rect',{x:gx,y:-18,width:10,height:10,rx:2,fill:col}));
+    g.appendChild(el('text',{x:gx+14,y:-9,'font-size':'10px',fill:'#8b97a7'},t));
+  });
+  c.appendChild(svg);
+})();
+
+</script>
+</body>
+</html>
