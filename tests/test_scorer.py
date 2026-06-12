@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.adapters.base import ToolCall
-from src.scorer import score_task
+from src.scorer import _match_keywords, score_task
 from src.tasks import ArgMatchType, ExpectedArg, ExpectedCall, Task
 
 
@@ -773,6 +773,109 @@ class TestExpectedParallel:
                     name="list_documents",
                     arguments={"filters": {"counterparty": "Apex Components"}},
                 ),
+            ],
+        )
+        assert result.score == 0
+        assert result.parallel_matched == 0
+        assert result.parallel_failed_specs == ["0:search", "1:search"]
+
+    def test_actual_calls_populated_on_parallel_result(self) -> None:
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(task, [self._HALVERSON, self._APEX])
+        assert result.actual_calls is not None
+        assert len(result.actual_calls) == 2
+        assert result.actual_calls == [
+            {"name": "search", "arguments": {"query": "halverson indemnification"}},
+            {"name": "search", "arguments": {"query": "apex liability caps"}},
+        ]
+
+
+class TestMatchKeywordsNestedOr:
+    # Nested-OR keyword schema: a plain string is required (AND), a nested
+    # list is an any-of group (OR). Models the live halverson_dispute_02
+    # spec: (counterparty) AND (indemnification OR liability).
+    _SPEC = ["halverson", ["indemnification", "liability"]]
+
+    def test_or_group_matches_first_synonym(self) -> None:
+        assert _match_keywords(self._SPEC, "halverson liability caps") is True
+
+    def test_or_group_matches_second_synonym(self) -> None:
+        assert _match_keywords(self._SPEC, "halverson indemnification clause") is True
+
+    def test_topic_missing_fails(self) -> None:
+        # Counterparty present, but no topic synonym → off-topic, reject.
+        assert _match_keywords(self._SPEC, "halverson pricing schedule") is False
+
+    def test_counterparty_missing_fails(self) -> None:
+        # Topic present, but wrong counterparty → reject.
+        assert _match_keywords(self._SPEC, "apex liability") is False
+
+    def test_flat_string_list_unchanged(self) -> None:
+        # Backward compatibility: a flat list still ANDs every substring.
+        assert _match_keywords(["indemnification", "2024"], "indemnification 2024") is (
+            True
+        )
+        assert _match_keywords(["indemnification", "2024"], "indemnification") is False
+
+
+class TestExpectedParallelNestedOr:
+    # OR-schema specs as they appear on the live halverson_dispute_02 task:
+    # each leg requires the counterparty AND (indemnification OR liability).
+    _SPECS = [
+        ExpectedCall(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["halverson", ["indemnification", "liability"]],
+                ),
+            ],
+        ),
+        ExpectedCall(
+            tool="search",
+            args=[
+                ExpectedArg(
+                    name="query",
+                    match_type=ArgMatchType.KEYWORDS,
+                    value=["apex", ["indemnification", "liability"]],
+                ),
+            ],
+        ),
+    ]
+
+    def test_legs_using_different_synonyms_both_bind(self) -> None:
+        # One leg phrases the topic as "liability", the other as
+        # "indemnification" — both are valid synonyms and must bind.
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(
+                    name="search",
+                    arguments={"query": "halverson limitation of liability caps"},
+                ),
+                ToolCall(
+                    name="search",
+                    arguments={"query": "apex indemnification provisions"},
+                ),
+            ],
+        )
+        assert result.score == 1
+        assert result.parallel_matched == 2
+        assert result.parallel_failed_specs == []
+
+    def test_off_topic_counterparty_fanout_rejected(self) -> None:
+        # The precision guard counterparty-only lacked: two distinct,
+        # correctly counterparty-scoped searches that are OFF-TOPIC
+        # (pricing, termination) must score 0 — the topic dimension the
+        # task exists to measure is absent.
+        task = _make_parallel_task(self._SPECS)
+        result = score_task(
+            task,
+            [
+                ToolCall(name="search", arguments={"query": "halverson pricing tiers"}),
+                ToolCall(name="search", arguments={"query": "apex termination notice"}),
             ],
         )
         assert result.score == 0

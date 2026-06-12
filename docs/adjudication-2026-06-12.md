@@ -101,50 +101,93 @@ rejected on a synonym the corpus itself surfaced; population (2) is a
 real miss. The grader currently cannot tell them apart.
 
 Corroborating signal already in the repo: the scorer unit test
-`TestExpectedParallel` (test_scorer.py:594) was authored with
+`TestExpectedParallel` (test_scorer.py) was authored with
 counterparty-only specs (`["halverson"]`, `["apex"]`) and an `_APEX`
-fixture query of `"apex liability caps"` — which *passes the looser test
-spec but would fail the live task's `["apex","indemnification"]` spec.*
-The test and the task already disagree; the test encodes the more
-defensible expectation.
+fixture query of `"apex liability caps"` — which *passes those looser
+specs but would fail the original live task's `["apex","indemnification"]`
+spec.* The test and the task already disagreed on whether a synonym should
+bind; the final OR-schema fix reconciles them by accepting either topic
+synonym while still requiring *a* topic token (the new
+`TestExpectedParallelNestedOr` and `TestMatchKeywordsNestedOr` guards
+encode this, and the off-topic-fan-out guard pins the precision the
+counterparty-only specs lacked).
 
-### Recommended action (implemented)
-Relax each parallel spec's `query` keywords to the **counterparty token
-only**:
+### Resolution history
 
-- spec 0: `["halverson", "indemnification"]` → `["halverson"]`
-- spec 1: `["apex", "indemnification"]` → `["apex"]`
+**Interim fix (superseded): counterparty-only keywords.** The first
+adjudication relaxed each parallel spec's `query` keywords to the
+**counterparty token only** (`["halverson", "indemnification"]` →
+`["halverson"]`; `["apex", "indemnification"]` → `["apex"]`), reasoning
+that the injective matcher still required two distinct `search` calls so
+no `list_documents`-only non-parallelizer could pass.
+
+**Two independent reviews flagged this as over-permissive.** A
+bottom-up implementation review observed that dropping the topic token
+**deletes the dimension the task exists to measure**: with counterparty
+tokens alone, two off-topic searches that merely *name* the counterparties
+(e.g. `"halverson pricing tiers"` + `"apex termination notice"`) bind both
+specs and pass, even though they retrieve nothing about indemnification or
+liability. A methodology review separately confirmed keep-strict on the
+decompose task (Task 2) and endorsed restoring the topic constraint here.
+The correct expectation is `(counterparty) AND (indemnification OR
+liability)` — but the keyword matcher was AND-only and the
+`expected_parallel` schema cannot express OR, so the interim fix could
+only drop the topic entirely or keep a single literal that rejected valid
+synonyms.
+
+### Final action (implemented): nested-OR keyword support
+Two changes land together:
+
+1. **`_match_keywords` gains a nested-OR capability** (scorer.py). Each
+   element of a keywords list is now EITHER a string (required substring,
+   AND — unchanged) OR a list of strings (an any-of group: at least one
+   must appear, OR). Flat string lists behave exactly as before, so every
+   other task and existing test is untouched.
+2. **The two `halverson_dispute_02` specs become**:
+   - spec 0: `["halverson", ["indemnification", "liability"]]`
+   - spec 1: `["apex", ["indemnification", "liability"]]`
+
+   i.e. each leg must name its counterparty AND at least one topic synonym.
+
+Additionally, a new **`actual_calls` audit field** on `TaskResult`
+(populated only on the parallel path with the full `{name, arguments}`
+batch) makes parallel pass-sets verifiable from logged results JSON —
+directly addressing the data limitation stated at the top of this memo,
+under which the original keyword inferences could not be checked against
+raw call arguments.
 
 Rationale and guardrails:
 
 - **It does not let a non-parallelizer pass.** The score still requires
-  two *distinct* `search` calls (injective matching, scorer.py:102–133).
-  Every `list_documents`-only config (opus-4-8, gpt-5.4-mini, Fable ×3)
-  still scores 0. Population (2) is unaffected.
-- **It stops rejecting correct synonyms.** Any model that issues a
-  Halverson-scoped search and an Apex-scoped search — regardless of
-  whether it says "indemnification," "liability caps," or "limitation of
-  liability" — now binds both specs, which is the behavior the task name
-  ("parallel invocation") is actually measuring.
-- **`expected_parallel` cannot carry alternatives.** The loader forbids
-  `expected_alternatives` on parallel tasks (tasks.py:91–95), so a
-  per-spec adjudicated alternative is not schema-expressible. Keyword
-  relaxation to the robust counterparty token is the conventional fix
-  (it is exactly what `hardening.md` §2 and §4-note-1 recommend, and what
-  the existing unit test already assumes).
-- **Counterparty token is robust.** "halverson" / "apex" each appear in
-  the user turn, the decompose response, and the corpus titles; there is
-  no synonym ambiguity on the entity, unlike on the topic.
+  two *distinct* `search` calls (injective matching, scorer.py). Every
+  `list_documents`-only config (opus-4-8, gpt-5.4-mini, Fable ×3) still
+  scores 0. Population (2) is unaffected.
+- **It stops rejecting correct synonyms.** A leg phrased around
+  "indemnification," "liability caps," or "limitation of liability" all
+  bind, because the OR group accepts either topic token.
+- **It restores the topic dimension the interim fix dropped.** An
+  on-counterparty but off-topic fan-out (pricing, termination) now fails,
+  as it should — the task measures topical parallel retrieval, not bare
+  counterparty mentions.
+- **OR is now schema-expressible** without `expected_alternatives` (which
+  the loader still forbids on parallel tasks, tasks.py): the any-of group
+  lives inside the existing `keywords` value, so no new task-schema field
+  is needed.
+- **Counterparty token stays robust.** "halverson" / "apex" each appear
+  in the user turn, the decompose response, and the corpus titles; there
+  is no synonym ambiguity on the entity, so it remains a hard AND term.
 
 ### Expected grading impact
 - `halverson_dispute_02` passers: **1/12 → likely 4–6/12.** The configs
   that issued two distinct searches (gpt-4o-mini, gpt-5.5, sonnet-4-6,
   opus-4-6, haiku-4-5) should now bind both specs *if* their two searches
-  were counterparty-scoped (one Halverson, one Apex). nano stays passing.
-  The `list_documents`-only configs stay failing. **This must be
-  confirmed on a re-run** — we cannot prove the exact pass set from
-  call-name data alone (see data limitation). The change can only ever
-  *help* a config that already issued ≥2 distinct searches; it can never
+  were counterparty-scoped AND on-topic (one Halverson, one Apex, each
+  naming indemnification or liability). nano stays passing. The
+  `list_documents`-only configs stay failing. **This must be confirmed on
+  a 12-config re-run** — we cannot prove the exact pass set from call-name
+  data alone (see data limitation), though the new `actual_calls` field
+  will make future pass-sets auditable. The change can only ever *help* a
+  config that already issued ≥2 distinct on-topic searches; it can never
   flip a non-parallelizer.
 - North-star CPC denominators shift only for the configs that flip.
 
@@ -199,6 +242,14 @@ sonnet-4-6 and opus-4-6 passed (2/12).
   renewal-decision date from a *different* doc family. So the "single
   cheap call" does not actually satisfy the request; it satisfies a
   sub-question.
+- **`vendor_renewal_decompose_01` and `vendor_autorenew_01` are two
+  DISTINCT tasks**, and the cheap `list_documents(type=vendor_agreement)`
+  move is *already accepted* on `vendor_autorenew_01` (it is that chain's
+  legitimate opening step). The decompose task is not redundant with it:
+  its Easton-lease clause lives in a **different doc family** (`lease`,
+  not `vendor_agreement`) that a vendor-filtered `list_documents` cannot
+  reach at all. Accepting the cheap move here would assert it answers the
+  whole question, which it provably does not.
 
 ### Evidence it is a defensible artifact (the other side)
 - The first two clauses *are* answerable by the `vendor_autorenew` chain's
@@ -251,11 +302,13 @@ behavioral story the blog leans on. It is **not** implemented here.
 
 | Task | Verdict | Action | Reverses prior decision? |
 |---|---|---|---|
-| `halverson_dispute_02` | Artifact (keyword over-tuned) | Relax parallel keywords to counterparty-only (`indemnification` dropped from both specs) | No |
+| `halverson_dispute_02` | Artifact (keyword over-tuned) | Nested-OR keywords: each spec requires `(counterparty) AND (indemnification OR liability)`; supersedes the interim counterparty-only relaxation. Adds an `actual_calls` audit field. | No |
 | `vendor_renewal_decompose_01` | Mixed, lean keep-strict | **No change.** Evidence surfaced for Sahil. | n/a (unchanged) |
 
 The `halverson_dispute_02` fix corrects a grader that conflates "didn't
 parallelize" with "phrased the synonym differently"; it cannot make a
-non-parallelizer pass. The decompose task is left to Sahil because
+non-parallelizer pass, and — unlike the interim counterparty-only
+relaxation that two reviews flagged as over-permissive — it cannot make an
+off-topic fan-out pass either. The decompose task is left to Sahil because
 changing it reverses an explicit decision and the cheaper alternative
 answers only part of the question.
