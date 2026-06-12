@@ -16,8 +16,8 @@ DATASET_PATH = Path("data/tasks/search_agent_v1.json")
 # Distribution over single-call tasks; the parallel task is counted
 # separately in test_parallel_tasks.
 EXPECTED_DISTRIBUTION = {
-    "search": 8,
-    "get_document": 7,
+    "search": 9,
+    "get_document": 6,
     "list_documents": 5,
     "query_decompose": 2,
 }
