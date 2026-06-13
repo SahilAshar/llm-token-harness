@@ -462,8 +462,9 @@ def main() -> None:
   }
   nav.tabs button {
     background: none; border: none; color: var(--muted);
-    font: inherit; font-size: 14px; font-weight: 600;
-    padding: 14px 18px; cursor: pointer;
+    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+    letter-spacing: 0.10em; text-transform: uppercase;
+    padding: 13px 18px; cursor: pointer;
     border-bottom: 2px solid transparent; margin-bottom: -1px;
   }
   nav.tabs button:hover { color: var(--text); }
@@ -473,17 +474,20 @@ def main() -> None:
   .md-content {
     max-width: 1000px; margin: 0 auto; padding: 32px 40px 80px;
   }
-  .md-content h2 { font-size: 24px; margin: 36px 0 12px; letter-spacing: -0.01em;
-    padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-  .md-content h3 { font-size: 19px; margin: 28px 0 10px; color: var(--text); }
-  .md-content h4 { font-size: 15px; margin: 20px 0 8px; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.04em; }
+  .md-content h2 { font-family: var(--font-display); font-weight: 600;
+    font-size: 22px; margin: 38px 0 12px; letter-spacing: 0.005em;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .md-content h3 { font-family: var(--font-display); font-weight: 600;
+    font-size: 17px; margin: 28px 0 10px; color: var(--text); letter-spacing: 0.005em; }
+  .md-content h4 { font-family: var(--font-mono); font-size: 12px; margin: 20px 0 8px;
+    color: var(--accent); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.10em; }
   .md-content p { margin: 10px 0; color: var(--text); }
   .md-content li { margin: 5px 0; }
   .md-content ul, .md-content ol { margin: 8px 0; padding-left: 24px; }
   .md-content code { background: var(--panel-2); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1px 5px; font-size: 12.5px;
-    font-family: "SF Mono", ui-monospace, Menlo, monospace; color: var(--code-fg); }
+    border-radius: 4px; padding: 1px 5px; font-size: 12px;
+    font-family: var(--font-mono); color: var(--code-fg); }
   .md-content pre { background: var(--code-bg); border: 1px solid var(--border);
     border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 14px 0; }
   .md-content pre code { background: none; border: none; padding: 0;
@@ -504,9 +508,9 @@ def main() -> None:
 
     tab_nav = (
         '<nav class="tabs">'
-        '<button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>'
-        '<button class="tab-btn" data-tab="insights">🔍 Insights</button>'
-        '<button class="tab-btn" data-tab="hardening">🛠 Hardening Roadmap</button>'
+        '<button class="tab-btn active" data-tab="dashboard">Dashboard</button>'
+        '<button class="tab-btn" data-tab="insights">Insights</button>'
+        '<button class="tab-btn" data-tab="hardening">Hardening Roadmap</button>'
         "</nav>"
     )
 
