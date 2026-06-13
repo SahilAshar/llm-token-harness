@@ -1264,10 +1264,15 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   }
 
   // ---- spine: task ids present in EVERY run (only task-for-task comparable set) ----
+  // Per-run task set = the UNION of task ids across that run's configs. Every config
+  // in a run scores the same task set today (an implicit invariant), so the union and
+  // any single config's keys are identical; taking the union defensively keeps the
+  // spine correct even if a future run scores some configs on a partial task set.
   const taskSets = runs.map(r => {
     const pcs = r.per_config_task_scores || {};
-    const first = Object.values(pcs)[0] || {};
-    return new Set(Object.keys(first));
+    const union = new Set();
+    Object.values(pcs).forEach(scores => Object.keys(scores || {}).forEach(t => union.add(t)));
+    return union;
   });
   const spine = [...taskSets.reduce((acc, s) => {
     if (acc === null) return new Set(s);
@@ -1275,7 +1280,10 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   }, null)];
   const spineCount = spine.length;
   const fullMax = Math.max(...runs.map(r => r.n_tasks || 0));
-  const haveSpine = spineCount >= 1;
+  // Soft floor: a 1-4 task intersection is too thin to be a meaningful task-for-task
+  // comparison, so fall back to Full-run scope rather than surface a misleading spine.
+  const SPINE_MIN = 5;
+  const haveSpine = spineCount >= SPINE_MIN;
 
   // ---- config roster: latest-run order, matched by label across runs ----
   const latest = runs[runs.length - 1];
@@ -1321,9 +1329,13 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   const metricGroup = segGroup('Metric',
     [{ val: 'cpc', text: 'CPC' }, { val: 'acc', text: 'Accuracy' }],
     () => metric, v => { metric = v; redraw(); });
+  const spineDisabledTitle = spineCount === 0
+    ? 'No tasks shared across all runs'
+    : 'Only ' + spineCount + ' task' + (spineCount === 1 ? '' : 's') + ' shared across all runs — too few (< ' +
+      SPINE_MIN + ') for a meaningful task-for-task comparison';
   const scopeGroup = segGroup('Scope',
     [{ val: 'spine', text: 'Spine (' + spineCount + ' shared)', disabled: !haveSpine,
-       title: haveSpine ? '' : 'No tasks shared across all runs' },
+       title: haveSpine ? '' : spineDisabledTitle },
      { val: 'full', text: 'Full run' }],
     () => scope, v => { scope = v; redraw(); });
   controls.appendChild(metricGroup);
