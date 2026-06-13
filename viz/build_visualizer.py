@@ -35,6 +35,13 @@ HARDENING_MD = "hardening-roadmap-2026-06-12.md"
 HISTORY_BLOB_ID = "history-blob"
 RUNS_MANIFEST = "data/runs.json"
 
+# Multi-rep CI study (Chart 11): a single dated aggregate produced by
+# aggregate_reps.py. Offline build INLINES it; Pages build BLANKS it and fetches
+# the file at runtime (REPS_LOADER_JS), falling back to null so Chart 11 degrades
+# cleanly. Dated filename mirrors the runs/<date>.json convention; bump on rerun.
+REPS_BLOB_ID = "reps-blob"
+REPS_JSON = "data/reps_2026-06-13.json"
+
 # Only the keys Chart 10 reads, to keep the inlined offline payload slim.
 _HISTORY_CONFIG_KEYS = ("label", "provider", "accuracy", "cpc_usd", "score", "n_tasks")
 
@@ -238,12 +245,18 @@ PAGES_LOADER_JS = """
         showRenderError('Renderer not found.');
         return;
       }
-      // History is a non-fatal second stage: load it (or fall back to []),
-      // then render. A history failure must NOT block the single-run dashboard.
+      // History + multi-rep are non-fatal second-stage loads (fall back to
+      // []/null), then render. Neither must block the single-run dashboard.
       var histP = (typeof window.__loadBenchHistory === 'function')
         ? window.__loadBenchHistory() : Promise.resolve([]);
-      return histP.catch(function () { return []; }).then(function (history) {
-        window.__BENCH_HISTORY__ = history || [];
+      var repsP = (typeof window.__loadBenchReps === 'function')
+        ? window.__loadBenchReps() : Promise.resolve(null);
+      return Promise.all([
+        histP.catch(function () { return []; }),
+        repsP.catch(function () { return null; })
+      ]).then(function (res) {
+        window.__BENCH_HISTORY__ = res[0] || [];
+        window.__BENCH_REPS__ = res[1] || null;
         // Keep render exceptions out of the fetch .catch so they are reported
         // honestly instead of masquerading as a data-load failure.
         try {
@@ -332,6 +345,58 @@ def inline_history(full_html: str, history: list[dict]) -> str:
     return new_html
 
 
+# ---------- multi-rep CI study (Chart 11) ----------
+
+
+def load_reps(viz: Path) -> dict | None:
+    """Read the dated multi-rep aggregate, or None if absent/malformed."""
+    path = viz / REPS_JSON
+    if not path.exists():
+        return None
+    try:
+        obj = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    return obj if isinstance(obj, dict) and obj.get("configs") else None
+
+
+def inline_reps(full_html: str, reps: dict | None) -> str:
+    """Replace the placeholder reps-blob with the real aggregate (or `{}`).
+
+    Mirrors the history-blob pattern: dashboard.html ships an empty `{}` blob;
+    the offline build inlines the real aggregate so Chart 11 works under file://.
+    """
+    payload = json.dumps(reps or {}, separators=(",", ":")).replace("</", "<\\/")
+    new_html, n = re.subn(
+        rf'(<script id="{REPS_BLOB_ID}" type="application/json">).*?(</script>)',
+        lambda m: m.group(1) + payload + m.group(2),
+        full_html,
+        count=1,
+        flags=re.DOTALL,
+    )
+    if n != 1:
+        raise RuntimeError("reps-blob placeholder not found in dashboard.html")
+    return new_html
+
+
+# Pages build: the multi-rep aggregate is fetched as a non-fatal stage. On ANY
+# failure __BENCH_REPS__ falls back to null and Chart 11 shows its own degraded
+# message — never the red banner.
+REPS_LOADER_JS = """
+<script>
+"use strict";
+// Live-data multi-rep loader: fetch the dated reps aggregate and expose it as
+// window.__BENCH_REPS__. Non-fatal: any failure resolves to null.
+window.__loadBenchReps = function () {
+  return fetch('%REPS_URL%', { cache: 'no-cache' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (o) { return (o && o.configs) ? o : null; })
+    .catch(function () { return null; });
+};
+</script>
+""".replace("%REPS_URL%", "./" + REPS_JSON)
+
+
 # Pages build: history is fetched as a non-fatal second stage. On ANY failure
 # (missing manifest, bad run file, offline) __BENCH_HISTORY__ falls back to []
 # and Chart 10 shows its own clean degraded message — never the red banner.
@@ -397,6 +462,25 @@ def to_pages_variant(full_html: str) -> str:
         raise RuntimeError("expected history-blob bootstrap not found in dashboard.html")
     out = out.replace(history_bootstrap, pages_history_bootstrap, 1)
 
+    # Multi-rep: same treatment — blank the inlined blob and swap the bootstrap
+    # for a placeholder the live loader populates before render.
+    out = re.sub(
+        rf'(<script id="{REPS_BLOB_ID}" type="application/json">).*?(</script>)',
+        r"\1{}\2",
+        out,
+        count=1,
+        flags=re.DOTALL,
+    )
+    reps_bootstrap = (
+        "  window.__BENCH_REPS__ = (function () { try { var o = JSON.parse("
+        f"document.getElementById('{REPS_BLOB_ID}').textContent || '{{}}'); "
+        "return (o && o.configs) ? o : null; } catch (e) { return null; } })();"
+    )
+    pages_reps_bootstrap = "  window.__BENCH_REPS__ = null;"
+    if reps_bootstrap not in out:
+        raise RuntimeError("expected reps-blob bootstrap not found in dashboard.html")
+    out = out.replace(reps_bootstrap, pages_reps_bootstrap, 1)
+
     # 1. Drop the stale inlined data so nothing ships baked into the page.
     out = re.sub(
         r'(<script id="data-blob" type="application/json">).*?(</script>)',
@@ -427,10 +511,16 @@ def to_pages_variant(full_html: str) -> str:
     # Close the wrapper at the end of that same script block. The render block
     # ends with `})();\n\n</script>` (the final IIFE then the closing tag).
     close_marker = "})();\n\n</script>"
-    # HISTORY_LOADER_JS must precede PAGES_LOADER_JS so window.__loadBenchHistory
-    # is defined when the latest.json loader invokes it before rendering.
+    # HISTORY_LOADER_JS + REPS_LOADER_JS must precede PAGES_LOADER_JS so both
+    # window.__loadBenchHistory and window.__loadBenchReps are defined when the
+    # latest.json loader invokes them before rendering.
     wrapped_close = (
-        "})();\n};\n</script>\n" + HISTORY_LOADER_JS + "\n" + PAGES_LOADER_JS
+        "})();\n};\n</script>\n"
+        + HISTORY_LOADER_JS
+        + "\n"
+        + REPS_LOADER_JS
+        + "\n"
+        + PAGES_LOADER_JS
     )
     if close_marker not in out:
         raise RuntimeError("could not locate render script closing to wrap")
@@ -568,6 +658,12 @@ def main() -> None:
         history = build_history(viz)
         dash = inline_history(dash, history)
         print(f"  inlined {len(history)} dated run(s) for history-over-time")
+        reps = load_reps(viz)
+        dash = inline_reps(dash, reps)
+        print(
+            "  inlined multi-rep aggregate: "
+            + (f"{len(reps['configs'])} configs" if reps else "none")
+        )
         out = viz / "visualizer.html"
         out.write_text(dash)
         print(f"wrote {out} ({len(dash)} bytes)")

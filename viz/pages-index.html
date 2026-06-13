@@ -817,6 +817,14 @@
   // ships [] -> Chart 10 shows its clean "needs >=2 runs" degraded message.
   window.__BENCH_HISTORY__ = [];
 </script>
+<script id="reps-blob" type="application/json">{}</script>
+<script>
+  // Multi-rep CI contract (Chart 11): the reps_<date>.json aggregate, or null
+  // when unavailable. build_visualizer.py inlines it for the offline build and
+  // blanks it (loader-fetched) for the Pages build. Standalone dashboard.html
+  // ships {} -> Chart 11 shows its clean "no multi-rep data" degraded message.
+  window.__BENCH_REPS__ = null;
+</script>
 <script>
 "use strict";
 window.__renderDashboard = function () {
@@ -1730,6 +1738,109 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
 
   redraw();
 })();
+
+// ============================================================
+// CHART 11 — Multi-rep score · 95% Wilson CI (the "no strict #1")
+// ============================================================
+(function () {
+  const reps = window.__BENCH_REPS__;
+  const c = card('11', 'Multi-rep score · 95% Wilson CI · the "no strict #1"',
+    'Each config re-run <b>N times</b> on the ' + N + '-task set. The dot is the <b>median</b> score; the solid bar is the <b>95% Wilson CI</b> on pooled accuracy (sampling error, roughly ±2 tasks); the faint range is the <b>per-rep min–max</b> (run-to-run signal — a different thing). ' +
+    'The leader\'s interval (shaded) overlaps the entire top cluster, so there is <b>no strict #1</b> — read tiers, not a leaderboard. Cost separates configs far more cleanly than score (see 01 / 03). <b>Fable 5 omitted</b>: API access suspended June 12–13, so it stays at its single-run r2 value.',
+    {wide:true});
+
+  if (!reps || !Array.isArray(reps.configs) || reps.configs.length === 0) {
+    const d = document.createElement('div');
+    d.className = 'hist-degraded';
+    d.innerHTML = 'No multi-rep aggregate is available. The offline build inlines ' +
+      '<code>viz/data/reps_*.json</code>; the live site fetches it. Run ' +
+      '<code>viz/aggregate_reps.py</code> over a reps directory to populate this view.';
+    c.appendChild(d);
+    return;
+  }
+
+  const rows = [...reps.configs].sort((a, b) => b.score_median - a.score_median);
+  const nTasks = (reps.meta && reps.meta.n_tasks) || N;
+  const repCount = rows[0] && rows[0].n_reps;
+
+  const W = 1100, rowH = 30, m = {t: 34, r: 168, b: 42, l: 150};
+  const H = m.t + m.b + rows.length * rowH;
+  const iw = W - m.l - m.r;
+  const svg = el('svg', {viewBox: `0 0 ${W} ${H}`});
+
+  const los = rows.map(d => d.ci_low_score), his = rows.map(d => d.ci_high_score);
+  const lo = Math.max(0, Math.floor(Math.min(...los) - 0.5));
+  const hi = Math.min(nTasks, Math.ceil(Math.max(...his) + 0.5));
+  const sx = v => m.l + iw * (v - lo) / (hi - lo);
+  const yBot = m.t + rows.length * rowH;
+
+  // leader CI band — the "everything overlapping is tied" zone
+  const lead = rows[0];
+  svg.appendChild(el('rect', {x: sx(lead.ci_low_score), y: m.t - 8, width: sx(lead.ci_high_score) - sx(lead.ci_low_score), height: rows.length * rowH + 8, fill: 'var(--accent)', opacity: 0.07, rx: 4}));
+  svg.appendChild(el('text', {x: (sx(lead.ci_low_score) + sx(lead.ci_high_score)) / 2, y: m.t - 14, 'text-anchor': 'middle', class: 'axis-label', fill: 'var(--accent)', 'font-size': '10px'}, 'leader 95% CI · overlap = statistically tied'));
+
+  // integer score gridlines
+  for (let v = lo; v <= hi; v++) {
+    const x = sx(v);
+    svg.appendChild(el('line', {x1: x, y1: m.t - 8, x2: x, y2: yBot, stroke: 'var(--grid)', 'stroke-dasharray': '2 3'}));
+    svg.appendChild(el('text', {x: x, y: yBot + 16, 'text-anchor': 'middle', class: 'tick'}, v));
+  }
+  svg.appendChild(el('text', {x: m.l + iw / 2, y: H - 5, 'text-anchor': 'middle', class: 'axis-label'}, 'Score (of ' + nTasks + ')  ·  ' + (repCount || 'N') + ' reps per config'));
+
+  rows.forEach((d, i) => {
+    const y = m.t + i * rowH + rowH / 2;
+    const col = provColor(d.provider);
+    // per-rep min–max range (faint, behind)
+    svg.appendChild(el('rect', {x: sx(d.score_min), y: y - 7, width: Math.max(2, sx(d.score_max) - sx(d.score_min)), height: 14, fill: col, opacity: 0.12, rx: 7}));
+    // Wilson CI whisker
+    svg.appendChild(el('line', {x1: sx(d.ci_low_score), y1: y, x2: sx(d.ci_high_score), y2: y, stroke: col, 'stroke-width': 2, opacity: 0.85}));
+    [d.ci_low_score, d.ci_high_score].forEach(v => svg.appendChild(el('line', {x1: sx(v), y1: y - 4, x2: sx(v), y2: y + 4, stroke: col, 'stroke-width': 2, opacity: 0.85})));
+    // median dot
+    svg.appendChild(el('circle', {cx: sx(d.score_median), cy: y, r: 4.5, fill: col, stroke: 'var(--panel)', 'stroke-width': 1.5}));
+    // labels
+    svg.appendChild(el('text', {x: m.l - 10, y: y + 4, 'text-anchor': 'end', class: 'bar-label'}, d.label));
+    svg.appendChild(el('text', {x: m.l + iw + 8, y: y + 4, class: 'bar-val'}, d.score_median + '  [' + d.ci_low_score.toFixed(1) + '–' + d.ci_high_score.toFixed(1) + ']'));
+  });
+  c.appendChild(svg);
+})();
+
+// ============================================================
+// CHART 12 — Over-call rate (unscored behavioral metric, #30)
+// ============================================================
+(function () {
+  const have = DATA.configs.filter(d => typeof d.over_call_rate === 'number');
+  const top = have.length ? [...have].sort((a, b) => b.over_call_rate - a.over_call_rate)[0] : null;
+  const c = card('12', 'Over-call rate · tool calls beyond the task ask',
+    'Unscored behavioral metric: the share of tasks where a config fired <b>more tool calls than the task needed</b>. ' +
+    'Over-calling is not wrong per se, but it inflates cost and is under-taxed by all-or-nothing scoring — a CPC tax that does not show up in the score. ' +
+    (top ? '<b>' + top.label + '</b> over-calls most (' + Math.round(top.over_call_rate * 100) + '%); configs at 0 never exceed the ask.' : ''));
+
+  if (have.length === 0) {
+    const d = document.createElement('div');
+    d.className = 'hist-degraded';
+    d.innerHTML = 'No <code>over_call_rate</code> in this run. Re-export with the current ' +
+      '<code>viz/export_bench_data.py</code> to populate this metric.';
+    c.appendChild(d);
+    return;
+  }
+
+  const rows = [...have].sort((a, b) => b.over_call_rate - a.over_call_rate);
+  const W = 540, rowH = 24, m = {t: 6, r: 70, b: 8, l: 128};
+  const H = m.t + m.b + rows.length * rowH;
+  const iw = W - m.l - m.r;
+  const svg = el('svg', {viewBox: `0 0 ${W} ${H}`});
+  const maxV = Math.max(0.0001, ...rows.map(d => d.over_call_rate));
+  rows.forEach((d, i) => {
+    const y = m.t + i * rowH;
+    const bw = iw * (d.over_call_rate / maxV);
+    svg.appendChild(el('text', {x: m.l - 8, y: y + rowH / 2 + 4, 'text-anchor': 'end', class: 'bar-label'}, d.label));
+    svg.appendChild(el('rect', {x: m.l, y: y + 4, width: iw, height: rowH - 9, fill: 'var(--panel-2)', rx: 3}));
+    svg.appendChild(el('rect', {x: m.l, y: y + 4, width: Math.max(d.over_call_rate > 0 ? 2 : 0, bw), height: rowH - 9, fill: provColor(d.provider), rx: 3, opacity: 0.9}));
+    const pct = Math.round(d.over_call_rate * 100);
+    svg.appendChild(el('text', {x: m.l + Math.max(bw, 2) + 6, y: y + rowH / 2 + 4, class: 'bar-val'}, pct + '%' + (d.over_call_count != null ? ' (' + d.over_call_count + ')' : '')));
+  });
+  c.appendChild(svg);
+})();
 };
 </script>
 
@@ -1767,6 +1878,19 @@ window.__loadBenchHistory = function () {
     })
     .then(function (list) { return (list || []).filter(Boolean); })
     .catch(function () { return []; });
+};
+</script>
+
+
+<script>
+"use strict";
+// Live-data multi-rep loader: fetch the dated reps aggregate and expose it as
+// window.__BENCH_REPS__. Non-fatal: any failure resolves to null.
+window.__loadBenchReps = function () {
+  return fetch('./data/reps_2026-06-13.json', { cache: 'no-cache' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (o) { return (o && o.configs) ? o : null; })
+    .catch(function () { return null; });
 };
 </script>
 
@@ -1815,12 +1939,18 @@ window.__loadBenchHistory = function () {
         showRenderError('Renderer not found.');
         return;
       }
-      // History is a non-fatal second stage: load it (or fall back to []),
-      // then render. A history failure must NOT block the single-run dashboard.
+      // History + multi-rep are non-fatal second-stage loads (fall back to
+      // []/null), then render. Neither must block the single-run dashboard.
       var histP = (typeof window.__loadBenchHistory === 'function')
         ? window.__loadBenchHistory() : Promise.resolve([]);
-      return histP.catch(function () { return []; }).then(function (history) {
-        window.__BENCH_HISTORY__ = history || [];
+      var repsP = (typeof window.__loadBenchReps === 'function')
+        ? window.__loadBenchReps() : Promise.resolve(null);
+      return Promise.all([
+        histP.catch(function () { return []; }),
+        repsP.catch(function () { return null; })
+      ]).then(function (res) {
+        window.__BENCH_HISTORY__ = res[0] || [];
+        window.__BENCH_REPS__ = res[1] || null;
         // Keep render exceptions out of the fetch .catch so they are reported
         // honestly instead of masquerading as a data-load failure.
         try {
