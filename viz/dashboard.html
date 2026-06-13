@@ -235,6 +235,55 @@
   .hist-degraded { color: var(--muted); font-size: 13px; padding: 22px 4px; line-height: 1.6; }
   .hist-degraded code { color: var(--text); }
   .hist-runmeta { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 14px; font-size: 11px; color: var(--faint); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  /* horizontal-scroll wrapper for the dense matrix tables — columns stay
+     legible (scroll, not crush). The right-edge fade hints there's more. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; position: relative; }
+  .table-scroll > table { min-width: max-content; }
+  /* ---------- responsive: phones & narrow tablets ---------- */
+  @media (max-width: 820px) {
+    header { padding: 24px 16px 18px; }
+    main {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding: 16px 16px 48px;
+    }
+    .footer { padding: 0 16px 32px; }
+    .statband { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); max-width: none; }
+    .card { padding: 16px 16px 18px; }
+    /* a tappable scroll affordance under the wide matrix tables */
+    .table-scroll {
+      background:
+        linear-gradient(to right, var(--panel) 30%, transparent),
+        linear-gradient(to right, transparent, var(--panel) 70%) 100% 0,
+        radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--text) 14%, transparent), transparent),
+        radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--text) 14%, transparent), transparent) 100% 0;
+      background-repeat: no-repeat;
+      background-size: 28px 100%, 28px 100%, 14px 100%, 14px 100%;
+      background-attachment: local, local, scroll, scroll;
+    }
+    .table-scroll::after {
+      content: "scroll →";
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-align: right;
+      padding: 6px 2px 0;
+    }
+  }
+  @media (max-width: 430px) {
+    header { padding: 20px 12px 16px; }
+    header h1 { font-size: 24px; }
+    main { padding: 12px 12px 40px; }
+    .footer { padding: 0 12px 28px; }
+    .northstar { padding: 9px 12px; font-size: 12.5px; }
+    .statband { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .statband .stat { padding: 11px 12px; }
+    .statband .stat .v { font-size: 24px; }
+    .card { padding: 14px 13px 16px; }
+    .card h2 { font-size: 15px; }
+  }
 </style>
 <script>
 (function () {
@@ -378,7 +427,7 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     '<b>' + cpcKing.label + '</b> has the lowest cost-per-correct. Past the frontier, extra spend buys little — the priciest config costs <b>' + cpcRatio + '×</b> more per correct answer. gemma is free (local) but lowest quality.',
     {wide:true});
 
-  const W = 1100, H = 420, m = {t: 20, r: 30, b: 55, l: 60};
+  const W = 1100, H = 420, m = {t: 20, r: 40, b: 55, l: 60};
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const svg = el('svg', {viewBox: `0 0 ${W} ${H}`});
   const g = el('g', {transform: `translate(${m.l},${m.t})`});
@@ -429,17 +478,97 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   });
   g.appendChild(el('path', {d:dPath, fill:'none', stroke:'var(--accent)', 'stroke-width':1.6, 'stroke-dasharray':'5 4', opacity:0.7}));
 
-  // points
+  // points (drawn first; labels are de-conflicted below)
   pts.forEach(p => {
     const x = sx(p.total_cost_usd), y = sy(p.acc);
     const col = provColor(p.provider);
     const onFront = frontier.includes(p);
     g.appendChild(el('circle', {cx:x, cy:y, r:onFront?7:5.5, fill:col, stroke:onFront?'var(--heading)':'var(--panel)', 'stroke-width':onFront?1.6:1, opacity:0.95}));
-    // label
-    const lbl = el('text', {x:x+10, y:y+3.5, class:'pt-label', fill:'var(--text)'}, p.label);
-    // nudge crowded left cluster
-    if (p.total_cost_usd < 0.03 && p.total_cost_usd > 0) lbl.setAttribute('y', y - 8);
-    g.appendChild(lbl);
+  });
+
+  // ---- label de-confliction: x-overlap grouping + vertical spread + leaders ----
+  // Without this, the high-cost cluster collides: at acc=0.80 five configs
+  // (opus-4-6, opus-4-8, Fable low/med/high) sit on one row and their
+  // right-anchored labels overlap and clip past the panel edge. We group any
+  // labels whose horizontal spans overlap (regardless of side), then spread
+  // each group vertically and draw a hairline leader to any displaced label.
+  // TW is a char-width heuristic (no real text measurement); provably
+  // collision-free on both shipped datasets, but a much wider config label or a
+  // font swap could require retuning it. Shared with the Chart 7 width model.
+  const TW = 5.4;          // ~px per char at the 10px .pt-label font
+  const LABEL_H = 12.5;    // min vertical gap between stacked labels
+  const PAD = 4;           // px clamp inset from the plot band edges
+
+  const labels = pts.map(p => {
+    const px = sx(p.total_cost_usd), py = sy(p.acc);
+    const w = p.label.length * TW;
+    // Default right-anchored; flip left if the right label would clip the
+    // panel, and only fall back to right if there is no room on the left.
+    let side = 'right';
+    if (px + 10 + w > iw) side = 'left';
+    if (side === 'left' && px - 10 - w < 0) side = 'right';
+    return { p, px, py, w, side, ly: py };
+  });
+  const xSpan = l => l.side === 'right'
+    ? [l.px + 10, l.px + 10 + l.w]
+    : [l.px - 10 - l.w, l.px - 10];
+
+  // Union-find groups of labels whose x-spans overlap (with 2px slack), so two
+  // labels only get forced apart vertically when they actually compete for the
+  // same horizontal band — far-apart labels keep their true y.
+  const parent = labels.map((_, i) => i);
+  const find = a => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+  const spans = labels.map(xSpan);
+  for (let i = 0; i < labels.length; i++) {
+    for (let j = i + 1; j < labels.length; j++) {
+      if (spans[i][0] < spans[j][1] + 2 && spans[j][0] < spans[i][1] + 2) {
+        parent[find(i)] = find(j);
+      }
+    }
+  }
+  const groups = {};
+  labels.forEach((_, i) => { (groups[find(i)] = groups[find(i)] || []).push(i); });
+
+  const top = PAD + 6, bottom = ih - PAD;
+  Object.values(groups).forEach(idxs => {
+    const col = idxs.map(i => labels[i]).sort((a, b) => a.py - b.py || a.px - b.px);
+    let prev = -Infinity;
+    col.forEach(l => {
+      if (l.ly < prev + LABEL_H) l.ly = prev + LABEL_H;
+      prev = l.ly;
+    });
+    // clamp the stack into the plot band: lift if it overflows the bottom,
+    // then nudge down if that pushed the top label above the ceiling.
+    if (col[col.length - 1].ly > bottom) {
+      const shift = col[col.length - 1].ly - bottom;
+      col.forEach(l => { l.ly -= shift; });
+    }
+    if (col[0].ly < top) {
+      const shift = top - col[0].ly;
+      col.forEach(l => { l.ly += shift; });
+    }
+  });
+
+  // draw leaders first (under labels), then the labels themselves
+  labels.forEach(l => {
+    const anchorRight = l.side === 'right';
+    const lx = anchorRight ? l.px + 10 : l.px - 10;
+    if (Math.abs(l.ly - l.py) > 2) {
+      const fromX = anchorRight ? l.px + 6 : l.px - 6;
+      const toX = anchorRight ? lx - 3 : lx + 3;
+      g.appendChild(el('path', {
+        d: `M${fromX} ${l.py} L${toX} ${l.ly - 3.2}`,
+        fill: 'none', stroke: 'var(--grid)', 'stroke-width': 1, opacity: 0.75,
+      }));
+    }
+  });
+  labels.forEach(l => {
+    g.appendChild(el('text', {
+      x: l.side === 'right' ? l.px + 10 : l.px - 10,
+      y: l.ly,
+      'text-anchor': l.side === 'right' ? 'start' : 'end',
+      class: 'pt-label', fill: 'var(--text)',
+    }, l.p.label));
   });
 
   c.appendChild(svg);
@@ -567,7 +696,10 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
       tr2.appendChild(td);
     });
     tbl.appendChild(tr2);
-    c.appendChild(tbl);
+    const scroll = document.createElement('div');
+    scroll.className = 'table-scroll';
+    scroll.appendChild(tbl);
+    c.appendChild(scroll);
   });
 })();
 
@@ -671,7 +803,10 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     });
     tbl.appendChild(tr);
   });
-  c.appendChild(tbl);
+  const scroll = document.createElement('div');
+  scroll.className = 'table-scroll';
+  scroll.appendChild(tbl);
+  c.appendChild(scroll);
 })();
 
 // ============================================================
