@@ -187,21 +187,33 @@ PAGES_LOADER_JS = """
 // Live-data loader for GitHub Pages: fetch the canonical latest snapshot,
 // then run the (deferred) dashboard renderer. No CDNs; same-origin JSON only.
 (function () {
-  function showError(msg) {
+  function banner(html) {
     var main = document.getElementById('main');
-    var banner = document.createElement('div');
-    banner.setAttribute('role', 'alert');
-    banner.style.cssText =
+    var el = document.createElement('div');
+    el.setAttribute('role', 'alert');
+    el.style.cssText =
       'margin:32px 40px;padding:18px 22px;border:1px solid #f85149;' +
       'border-radius:10px;background:rgba(248,81,73,0.08);color:#f0b6b2;' +
       'font-size:14px;line-height:1.5;';
-    banner.innerHTML =
+    el.innerHTML = html;
+    if (main) { main.appendChild(el); } else { document.body.appendChild(el); }
+  }
+  // Genuine network / JSON load failure: the data never arrived.
+  function showFetchError(msg) {
+    banner(
       '<strong>Could not load benchmark data.</strong><br>' +
       'Tried to fetch <code>%URL%</code>. ' +
       'This page needs to be served over HTTP(S) (e.g. GitHub Pages) so the ' +
       'same-origin data file is reachable.<br><span style="opacity:0.8">' +
-      msg + '</span>';
-    if (main) { main.appendChild(banner); } else { document.body.appendChild(banner); }
+      msg + '</span>');
+  }
+  // Data arrived fine but a renderer threw: do NOT blame the fetch.
+  function showRenderError(msg) {
+    banner(
+      '<strong>Benchmark data loaded, but a panel failed to render.</strong><br>' +
+      'The data fetch succeeded — this is a rendering error, not a load ' +
+      'failure. See the browser console for details.<br>' +
+      '<span style="opacity:0.8">' + msg + '</span>');
   }
   fetch('%URL%', { cache: 'no-cache' })
     .then(function (r) {
@@ -210,13 +222,20 @@ PAGES_LOADER_JS = """
     })
     .then(function (data) {
       window.__BENCH_DATA__ = data;
-      if (typeof window.__renderDashboard === 'function') {
+      if (typeof window.__renderDashboard !== 'function') {
+        showRenderError('Renderer not found.');
+        return;
+      }
+      // Keep render exceptions out of the fetch .catch so they are reported
+      // honestly instead of masquerading as a data-load failure.
+      try {
         window.__renderDashboard();
-      } else {
-        showError('Renderer not found.');
+      } catch (err) {
+        if (window.console && console.error) { console.error(err); }
+        showRenderError(String(err));
       }
     })
-    .catch(function (err) { showError(String(err)); });
+    .catch(function (err) { showFetchError(String(err)); });
 })();
 </script>
 """.replace("%URL%", DATA_URL)
