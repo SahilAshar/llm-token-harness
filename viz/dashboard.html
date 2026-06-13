@@ -369,7 +369,73 @@
     .statband .stat .v { font-size: 24px; }
     .card { padding: 14px 13px 16px; }
     .card h2 { font-size: 15px; }
+    .standfirst { font-size: 16px; }
+    table.leaderboard { font-size: 11.5px; }
+    table.leaderboard tbody td, table.leaderboard thead th { padding: 7px 7px; }
   }
+  /* ---- editorial standfirst (replaces the KPI tile grid) ---- */
+  .standfirst {
+    margin-top: 22px; max-width: 880px;
+    font-family: var(--font-body);
+    font-size: 18px; line-height: 1.55; color: var(--heading);
+    font-weight: 450; letter-spacing: -0.003em;
+  }
+  .standfirst .lead { font-weight: 600; }
+  .standfirst .dim { color: var(--muted); }
+  .standfirst .num {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    color: var(--accent); font-weight: 600; font-size: 0.92em;
+  }
+  /* ---- dashboard sub-tabs (By task / Methodology / Over time) ---- */
+  .subtabs { grid-column: 1 / -1; margin-top: 4px; }
+  .subtabs-nav {
+    display: flex; gap: 2px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border); margin-bottom: 20px;
+  }
+  .subtabs-nav button {
+    appearance: none; background: none; border: none;
+    font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+    letter-spacing: 0.10em; text-transform: uppercase;
+    color: var(--faint); cursor: pointer;
+    padding: 10px 16px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .subtabs-nav button:hover { color: var(--text); }
+  .subtabs-nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .subtabs-nav button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  .subpanel { display: none; }
+  .subpanel.active { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  /* ---- backbone leaderboard table ---- */
+  .lb-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.leaderboard {
+    width: 100%; border-collapse: collapse; min-width: 720px;
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12.5px;
+  }
+  table.leaderboard thead th {
+    text-align: right; padding: 8px 11px; color: var(--faint);
+    font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 600;
+    border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  table.leaderboard thead th.col-model { text-align: left; }
+  table.leaderboard thead th.col-rank { text-align: center; }
+  table.leaderboard thead th:hover { color: var(--text); }
+  table.leaderboard thead th.sorted { color: var(--accent); }
+  table.leaderboard thead th .arrow { font-size: 8px; opacity: 0.8; margin-left: 2px; }
+  table.leaderboard tbody td {
+    padding: 9px 11px; text-align: right; border-bottom: 1px solid var(--border);
+    background-clip: padding-box;
+  }
+  table.leaderboard tbody tr:last-child td { border-bottom: none; }
+  table.leaderboard tbody tr:hover td { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--accent) 4%, transparent); }
+  table.leaderboard td.col-rank { text-align: center; color: var(--muted); width: 34px; }
+  table.leaderboard td.col-model {
+    text-align: left; color: var(--heading); font-family: var(--font-body);
+    font-weight: 500; white-space: nowrap;
+  }
+  table.leaderboard tr.lead td.col-model { font-weight: 700; }
+  .lb-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 9px; vertical-align: middle; }
+  .lb-medal { margin-left: 7px; color: var(--accent); }
+  .lb-num { position: relative; }
+  .lb-ci { color: var(--faint); font-size: 10.5px; margin-left: 5px; }
 </style>
 <script>
 (function () {
@@ -450,16 +516,17 @@ function el(tag, attrs, text) {
   return e;
 }
 function card(num, title, insightHTML, opts) {
+  opts = opts || {};
   const c = document.createElement('div');
-  c.className = 'card' + (opts && opts.wide ? ' wide' : '');
+  c.className = 'card' + (opts.wide ? ' wide' : '');
   const h = document.createElement('h2');
-  h.innerHTML = '<span class="chartnum">' + num + '</span>' + title;
+  h.innerHTML = (num ? '<span class="chartnum">' + num + '</span>' : '') + title;
   c.appendChild(h);
   const ins = document.createElement('div');
   ins.className = 'insight';
   ins.innerHTML = insightHTML;
   c.appendChild(ins);
-  document.getElementById('main').appendChild(c);
+  (opts.mount || document.getElementById('main')).appendChild(c);
   return c;
 }
 
@@ -489,36 +556,41 @@ const gemmaCfg = DATA.configs.find(d => d.provider === 'ollama') || floorCfg;
 const sortedByCost = [...DATA.configs].sort((a, b) => a.total_cost_usd - b.total_cost_usd);
 const frontier = (() => { const f = []; let best = -1; for (const p of sortedByCost) { if (p.accuracy > best) { f.push(p); best = p.accuracy; } } return f; })();
 
-// ---- hero stat band: the north-star numbers, computed ----
+// ---- editorial standfirst (replaces the KPI tile band) ----
 (function () {
   const band = document.getElementById('statband');
   if (!band) return;
-  const stats = [
-    { k: 'Best cost-per-correct', v: fmtUsd(cpcKing.cpc_usd), s: cpcKing.label },
-    { k: 'Top accuracy', v: topCfg.score + '/' + N, s: topCfg.label + ' · ' + fmtPct(topCfg.accuracy) },
-    { k: 'CPC spread', v: cpcRatio + '×', s: 'cheapest → priciest per correct' },
-    { k: 'Free local baseline', v: gemmaCfg.score + '/' + N, s: gemmaCfg.label + ' · $0' },
-  ];
-  stats.forEach((st, i) => {
-    const d = document.createElement('div');
-    d.className = 'stat' + (i === 0 ? ' lead' : '');
-    d.innerHTML = '<div class="k">' + st.k + '</div>' +
-      '<div class="v">' + st.v + '</div>' +
-      '<div class="s">' + st.s + '</div>';
-    band.appendChild(d);
-  });
+  band.className = 'standfirst';
+  const reps = window.__BENCH_REPS__;
+  let tied = null;
+  if (reps && Array.isArray(reps.configs) && reps.configs.length) {
+    const sorted = [...reps.configs].sort((a, b) => b.score_median - a.score_median);
+    const lead = sorted[0];
+    tied = sorted.filter(d => d.ci_high_score >= lead.ci_low_score).length;
+  }
+  const tiedPhrase = (tied && tied >= 2)
+    ? 'The top <span class="num">' + tied + '</span> configs cluster within sampling noise on accuracy'
+    : 'The leading configs cluster tightly on accuracy';
+  band.innerHTML =
+    '<span class="lead">' + tiedPhrase +
+    ' — but cost-per-correct spans <span class="num">' + cpcRatio + '×</span>.</span> ' +
+    '<span class="dim">That gap, not the leaderboard, is the point: the cheapest correct answer runs ' +
+    '<span class="num">' + fmtUsd(cpcKing.cpc_usd) + '</span> (' + cpcKing.label + '), and a free local model still clears ' +
+    '<span class="num">' + gemmaCfg.score + '/' + N + '</span>.</span>';
 })();
 
 // ============================================================
-// CHART 1 — Quality vs Cost scatter (log x), with frontier
+// Composable panels — each owns one card and mounts where told
 // ============================================================
-(function () {
-  const c = card('01', 'Quality vs Cost — the money chart',
+
+// ---- Quality vs Cost scatter (log x), with frontier ----
+function drawScatter(mount) {
+  const c = card('', 'Quality vs Cost — the money chart',
     'x = total run cost (<b>log scale</b>), y = accuracy (score/' + N + '). Points colored by provider. ' +
     'The dashed line is the <b>cost-efficient frontier</b>: no config is both cheaper and more accurate than a frontier point. ' +
     '<b>' + topCfg.label + '</b> leads accuracy at ' + topCfg.score + '/' + N + ' (' + fmtPct(topCfg.accuracy) + '); ' +
     '<b>' + cpcKing.label + '</b> has the lowest cost-per-correct. Past the frontier, extra spend buys little — the priciest config costs <b>' + cpcRatio + '×</b> more per correct answer. gemma is free (local) but lowest quality.',
-    {wide:true});
+    {wide: true, mount});
 
   const W = 1100, H = 420, m = {t: 20, r: 40, b: 55, l: 60};
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
@@ -527,43 +599,34 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   svg.appendChild(g);
 
   const pts = DATA.configs.map(d => ({...d, acc: d.score / N}));
-  // log x; treat $0 (gemma) as a pinned leftmost decade
   const costs = pts.map(p => p.total_cost_usd).filter(v => v > 0);
   const minC = Math.min(...costs), maxC = Math.max(...costs);
   const lx0 = Math.log10(minC) - 0.35, lx1 = Math.log10(maxC) + 0.18;
-  const xZero = 0; // pixel slot for $0
-  const xPlot = x => m.l===0?0:0; // unused
   const sx = c2 => c2 <= 0 ? 12 : 40 + (iw - 40) * (Math.log10(c2) - lx0) / (lx1 - lx0);
-  const sy = a => ih - (a) * ih; // 0..1 -> full height (0 at bottom)
+  const sy = a => ih - (a) * ih;
 
-  // grid + y ticks (accuracy)
   for (let i = 0; i <= 5; i++) {
     const a = i / 5;
     const y = sy(a);
     g.appendChild(el('line', {class:'', x1:0, y1:y, x2:iw, y2:y, stroke:'var(--grid)', 'stroke-dasharray':'2 3'}));
     g.appendChild(el('text', {x:-10, y:y+3, 'text-anchor':'end', class:'tick'}, (a*100).toFixed(0)+'%'));
   }
-  // x ticks (log decades)
   [0.001, 0.01, 0.1, 1].forEach(v => {
     if (Math.log10(v) < lx0 || Math.log10(v) > lx1) return;
     const x = sx(v);
     g.appendChild(el('line', {x1:x, y1:0, x2:x, y2:ih, stroke:'var(--grid)', 'stroke-dasharray':'2 3'}));
     g.appendChild(el('text', {x:x, y:ih+18, 'text-anchor':'middle', class:'tick'}, fmtUsd(v)));
   });
-  // $0 slot tick
   g.appendChild(el('text', {x:12, y:ih+18, 'text-anchor':'middle', class:'tick'}, '$0'));
-  // axis labels
   g.appendChild(el('text', {x:iw/2, y:ih+44, 'text-anchor':'middle', class:'axis-label'}, 'Total run cost (USD, log scale)'));
   g.appendChild(el('text', {x:-42, y:ih/2, 'text-anchor':'middle', class:'axis-label', transform:`rotate(-90 -42 ${ih/2})`}, 'Accuracy (score / ' + N + ')'));
 
-  // frontier: among paid configs, points not dominated (cheaper AND higher acc)
   const sorted = [...pts].sort((a,b) => a.total_cost_usd - b.total_cost_usd);
   const frontier = [];
   let bestAcc = -1;
   for (const p of sorted) {
     if (p.acc > bestAcc) { frontier.push(p); bestAcc = p.acc; }
   }
-  // frontier path
   let dPath = '';
   frontier.forEach((p, i) => {
     const x = sx(p.total_cost_usd), y = sy(p.acc);
@@ -571,7 +634,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   });
   g.appendChild(el('path', {d:dPath, fill:'none', stroke:'var(--accent)', 'stroke-width':1.6, 'stroke-dasharray':'5 4', opacity:0.7}));
 
-  // points (drawn first; labels are de-conflicted below)
   pts.forEach(p => {
     const x = sx(p.total_cost_usd), y = sy(p.acc);
     const col = provColor(p.provider);
@@ -579,24 +641,13 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     g.appendChild(el('circle', {cx:x, cy:y, r:onFront?7:5.5, fill:col, stroke:onFront?'var(--heading)':'var(--panel)', 'stroke-width':onFront?1.6:1, opacity:0.95}));
   });
 
-  // ---- label de-confliction: x-overlap grouping + vertical spread + leaders ----
-  // Without this, the high-cost cluster collides: at acc=0.80 five configs
-  // (opus-4-6, opus-4-8, Fable low/med/high) sit on one row and their
-  // right-anchored labels overlap and clip past the panel edge. We group any
-  // labels whose horizontal spans overlap (regardless of side), then spread
-  // each group vertically and draw a hairline leader to any displaced label.
-  // TW is a char-width heuristic (no real text measurement); provably
-  // collision-free on both shipped datasets, but a much wider config label or a
-  // font swap could require retuning it. Shared with the Chart 7 width model.
-  const TW = 5.4;          // ~px per char at the 10px .pt-label font
-  const LABEL_H = 12.5;    // min vertical gap between stacked labels
-  const PAD = 4;           // px clamp inset from the plot band edges
+  const TW = 5.4;
+  const LABEL_H = 12.5;
+  const PAD = 4;
 
   const labels = pts.map(p => {
     const px = sx(p.total_cost_usd), py = sy(p.acc);
     const w = p.label.length * TW;
-    // Default right-anchored; flip left if the right label would clip the
-    // panel, and only fall back to right if there is no room on the left.
     let side = 'right';
     if (px + 10 + w > iw) side = 'left';
     if (side === 'left' && px - 10 - w < 0) side = 'right';
@@ -606,9 +657,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     ? [l.px + 10, l.px + 10 + l.w]
     : [l.px - 10 - l.w, l.px - 10];
 
-  // Union-find groups of labels whose x-spans overlap (with 2px slack), so two
-  // labels only get forced apart vertically when they actually compete for the
-  // same horizontal band — far-apart labels keep their true y.
   const parent = labels.map((_, i) => i);
   const find = a => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
   const spans = labels.map(xSpan);
@@ -630,8 +678,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
       if (l.ly < prev + LABEL_H) l.ly = prev + LABEL_H;
       prev = l.ly;
     });
-    // clamp the stack into the plot band: lift if it overflows the bottom,
-    // then nudge down if that pushed the top label above the ceiling.
     if (col[col.length - 1].ly > bottom) {
       const shift = col[col.length - 1].ly - bottom;
       col.forEach(l => { l.ly -= shift; });
@@ -642,7 +688,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     }
   });
 
-  // draw leaders first (under labels), then the labels themselves
   labels.forEach(l => {
     const anchorRight = l.side === 'right';
     const lx = anchorRight ? l.px + 10 : l.px - 10;
@@ -665,75 +710,203 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   });
 
   c.appendChild(svg);
-})();
+}
 
-// ============================================================
-// CHART 2 — Score ranking (horizontal bars)
-// ============================================================
-(function () {
-  const c = card('02', 'Score ranking — tasks solved (of ' + N + ')',
-    'Configs sorted by raw score. <b>' + topCfg.label + '</b> tops the board at ' + topCfg.score + '/' + N + '; ' +
-    '<b>' + floorCfg.label + '</b> floors at ' + floorCfg.score + '. ' +
-    'OpenAI and Anthropic both place configs near the top — quality is not provider-locked.');
+// ---- Multi-rep score · 95% Wilson CI (the "no strict #1") ----
+function drawForest(mount) {
+  const reps = window.__BENCH_REPS__;
+  const c = card('', 'Multi-rep score · 95% Wilson CI · the "no strict #1"',
+    'Each config re-run <b>N times</b> on the ' + N + '-task set. The dot is the <b>median</b> score; the solid bar is the <b>95% Wilson CI</b> on pooled accuracy (sampling error, roughly ±2 tasks); the faint range is the <b>per-rep min–max</b> (run-to-run signal — a different thing). ' +
+    'The leader\'s interval (shaded) overlaps the entire top cluster, so there is <b>no strict #1</b> — read tiers, not a leaderboard. Cost separates configs far more cleanly than score. <b>Fable 5 omitted</b>: API access suspended June 12–13, so it stays at its single-run r2 value.',
+    {wide: true, mount});
 
-  const rows = [...DATA.configs].sort((a,b) => b.score - a.score || b.accuracy - a.accuracy);
-  const W = 540, rowH = 26, m = {t:6, r:48, b:8, l:128};
+  if (!reps || !Array.isArray(reps.configs) || reps.configs.length === 0) {
+    const d = document.createElement('div');
+    d.className = 'hist-degraded';
+    d.innerHTML = 'No multi-rep aggregate is available. The offline build inlines ' +
+      '<code>viz/data/reps_*.json</code>; the live site fetches it. Run ' +
+      '<code>viz/aggregate_reps.py</code> over a reps directory to populate this view.';
+    c.appendChild(d);
+    return;
+  }
+
+  const rows = [...reps.configs].sort((a, b) => b.score_median - a.score_median);
+  const nTasks = (reps.meta && reps.meta.n_tasks) || N;
+  const repCount = rows[0] && rows[0].n_reps;
+
+  const W = 1100, rowH = 28, m = {t: 34, r: 168, b: 42, l: 150};
   const H = m.t + m.b + rows.length * rowH;
   const iw = W - m.l - m.r;
-  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
-  const maxV = N;
+  const svg = el('svg', {viewBox: `0 0 ${W} ${H}`});
+
+  const los = rows.map(d => d.ci_low_score), his = rows.map(d => d.ci_high_score);
+  const lo = Math.max(0, Math.floor(Math.min(...los) - 0.5));
+  const hi = Math.min(nTasks, Math.ceil(Math.max(...his) + 0.5));
+  const sx = v => m.l + iw * (v - lo) / (hi - lo);
+  const yBot = m.t + rows.length * rowH;
+
+  const lead = rows[0];
+  svg.appendChild(el('rect', {x: sx(lead.ci_low_score), y: m.t - 8, width: sx(lead.ci_high_score) - sx(lead.ci_low_score), height: rows.length * rowH + 8, fill: 'var(--accent)', opacity: 0.07, rx: 4}));
+  svg.appendChild(el('text', {x: (sx(lead.ci_low_score) + sx(lead.ci_high_score)) / 2, y: m.t - 14, 'text-anchor': 'middle', class: 'axis-label', fill: 'var(--accent)', 'font-size': '10px'}, 'leader 95% CI · overlap = statistically tied'));
+
+  for (let v = lo; v <= hi; v++) {
+    const x = sx(v);
+    svg.appendChild(el('line', {x1: x, y1: m.t - 8, x2: x, y2: yBot, stroke: 'var(--grid)', 'stroke-dasharray': '2 3'}));
+    svg.appendChild(el('text', {x: x, y: yBot + 16, 'text-anchor': 'middle', class: 'tick'}, v));
+  }
+  svg.appendChild(el('text', {x: m.l + iw / 2, y: H - 5, 'text-anchor': 'middle', class: 'axis-label'}, 'Score (of ' + nTasks + ')  ·  ' + (repCount || 'N') + ' reps per config'));
+
   rows.forEach((d, i) => {
-    const y = m.t + i*rowH;
-    const bw = iw * (d.score / maxV);
-    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, d.label));
-    svg.appendChild(el('rect', {x:m.l, y:y+4, width:iw, height:rowH-10, fill:'var(--panel-2)', rx:3}));
-    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:provColor(d.provider), rx:3}));
-    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, d.score + '/' + N));
+    const y = m.t + i * rowH + rowH / 2;
+    const col = provColor(d.provider);
+    svg.appendChild(el('rect', {x: sx(d.score_min), y: y - 7, width: Math.max(2, sx(d.score_max) - sx(d.score_min)), height: 14, fill: col, opacity: 0.12, rx: 7}));
+    svg.appendChild(el('line', {x1: sx(d.ci_low_score), y1: y, x2: sx(d.ci_high_score), y2: y, stroke: col, 'stroke-width': 2, opacity: 0.85}));
+    [d.ci_low_score, d.ci_high_score].forEach(v => svg.appendChild(el('line', {x1: sx(v), y1: y - 4, x2: sx(v), y2: y + 4, stroke: col, 'stroke-width': 2, opacity: 0.85})));
+    svg.appendChild(el('circle', {cx: sx(d.score_median), cy: y, r: 4.5, fill: col, stroke: 'var(--panel)', 'stroke-width': 1.5}));
+    svg.appendChild(el('text', {x: m.l - 10, y: y + 4, 'text-anchor': 'end', class: 'bar-label'}, d.label));
+    svg.appendChild(el('text', {x: m.l + iw + 8, y: y + 4, class: 'bar-val'}, d.score_median + '  [' + d.ci_low_score.toFixed(1) + '–' + d.ci_high_score.toFixed(1) + ']'));
   });
   c.appendChild(svg);
-})();
+}
 
-// ============================================================
-// CHART 3 — CPC ranking (log)
-// ============================================================
-(function () {
-  const c = card('03', 'CPC ranking — cost per correct task (log)',
-    'Lower is better. <b>' + cpcKing.label + '</b> has the lowest cost-per-correct at <b>' + fmtUsd(cpcKing.cpc_usd) + '</b>/correct. ' +
-    '<b>' + gemmaCfg.label + ' runs at $0</b> (local) but quality lags. ' +
-    'The priciest config (<b>' + cpcWorst.label + '</b>) costs <b>' + cpcRatio + '×</b> more per correct answer.');
+// ---- Backbone leaderboard: every config, every metric, sortable ----
+function drawLeaderboard(mount) {
+  const reps = window.__BENCH_REPS__;
+  const repByLabel = {};
+  if (reps && Array.isArray(reps.configs)) reps.configs.forEach(r => { repByLabel[r.label] = r; });
 
-  // exclude gemma (0) from log bars; annotate separately
-  const paid = DATA.configs.filter(d => d.cpc_usd > 0).sort((a,b) => a.cpc_usd - b.cpc_usd);
-  const W = 540, rowH = 26, m = {t:6, r:70, b:22, l:128};
-  const H = m.t + m.b + (paid.length+1) * rowH;
-  const iw = W - m.l - m.r;
-  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
-  const minV = Math.min(...paid.map(d=>d.cpc_usd)), maxV = Math.max(...paid.map(d=>d.cpc_usd));
-  const l0 = Math.log10(minV)-0.05, l1 = Math.log10(maxV)+0.05;
-  const sx = v => iw * (Math.log10(v) - l0) / (l1 - l0);
-  paid.forEach((d, i) => {
-    const y = m.t + i*rowH;
-    const bw = Math.max(2, sx(d.cpc_usd));
-    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, d.label));
-    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:provColor(d.provider), rx:3}));
-    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, fmtUsd(d.cpc_usd)));
-    if (i===0) svg.appendChild(el('text', {x:m.l+bw+44, y:y+rowH/2+4, class:'bar-val', fill:'var(--good)'}, '◀ king'));
+  const distractByLabel = {};
+  (DATA.distractor_picks || []).forEach(p => { distractByLabel[p.label] = p.picks.length; });
+
+  const rows = DATA.configs.map(d => {
+    const r = repByLabel[d.label];
+    const hasCI = !!r;
+    const mid = hasCI ? r.score_median : d.score;
+    const lo = hasCI ? r.ci_low_score : d.score;
+    const hi = hasCI ? r.ci_high_score : d.score;
+    return {
+      label: d.label, provider: d.provider,
+      score: d.score, mid, lo, hi, hasCI, acc: mid / N,
+      cpc: d.cpc_usd, cost: d.total_cost_usd,
+      over: d.over_call_rate,
+      distract: (distractByLabel[d.label] || 0) / N,
+      latency: d.mean_latency_s,
+    };
   });
-  // gemma row
-  const gy = m.t + paid.length*rowH;
-  const gemma = DATA.configs.find(d=>d.provider==='ollama');
-  svg.appendChild(el('text', {x:m.l-8, y:gy+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, gemma.label));
-  svg.appendChild(el('rect', {x:m.l, y:gy+4, width:3, height:rowH-10, fill:provColor('ollama'), rx:3}));
-  svg.appendChild(el('text', {x:m.l+10, y:gy+rowH/2+4, class:'bar-val', fill:'var(--ollama)'}, '$0 (local, off-scale)'));
-  c.appendChild(svg);
-})();
+  // overlap-tied rank: 1 + #{ j : CI of j strictly above CI of i }
+  rows.forEach(ri => { ri.rank = 1 + rows.filter(rj => rj.lo > ri.hi).length; });
 
-// ============================================================
-// CHART 4 — Parallel task strips
-// ============================================================
-(function () {
-  // Tolerate both the current list shape (parallel_tasks) and the legacy
-  // single-object shape (parallel_task) the inlined offline blob still uses.
+  const anyCI = rows.some(r => r.hasCI);
+  const maxCpc = Math.max(...rows.map(r => r.cpc));
+
+  const c = card('', 'Leaderboard · every config, every metric',
+    'The backbone, sortable by any column (click a header). <b>Rank</b> ties when 95% CIs overlap — no false precision. ' +
+    'Accuracy carries its <b>[CI]</b>; CPC and cost are bar-scaled in-cell. Folds in score, CPC, over-call and distractor rates so they need no separate charts.' +
+    (anyCI ? ' <span class="lb-ci">*</span> = no multi-rep CI (single run).' : ''),
+    {wide: true, mount});
+
+  function provTint(p) { return 'color-mix(in srgb, ' + provColor(p) + ' 16%, transparent)'; }
+  function setBar(td, pct, color) {
+    const q = Math.max(0, Math.min(100, pct));
+    td.style.background = 'linear-gradient(90deg, ' + color + ' ' + q + '%, transparent ' + q + '%)';
+  }
+  function fmtNum(v) { return Number.isInteger(v) ? String(v) : v.toFixed(1); }
+
+  const cols = [
+    {key: 'rank', label: '#', cls: 'col-rank', sortVal: r => r.rank, defDir: 1,
+     fill: (td, r) => { td.textContent = r.rank; }},
+    {key: 'model', label: 'Model', cls: 'col-model', sortVal: r => r.label.toLowerCase(), defDir: 1,
+     fill: (td, r) => {
+       const dot = document.createElement('span'); dot.className = 'lb-dot';
+       dot.style.background = provColor(r.provider); td.appendChild(dot);
+       td.appendChild(document.createTextNode(r.label));
+       if (r.rank === 1 && r.hasCI) { const med = document.createElement('span'); med.className = 'lb-medal'; med.textContent = '◆'; td.appendChild(med); }
+     }},
+    {key: 'acc', label: 'Accuracy', sortVal: r => r.mid, defDir: -1,
+     fill: (td, r) => {
+       setBar(td, r.acc * 100, provTint(r.provider));
+       const num = document.createElement('span'); num.className = 'lb-num';
+       num.textContent = fmtNum(r.mid) + '/' + N; td.appendChild(num);
+       const ci = document.createElement('span'); ci.className = 'lb-ci';
+       ci.textContent = r.hasCI ? ('[' + r.lo.toFixed(1) + '–' + r.hi.toFixed(1) + ']') : '*';
+       td.appendChild(ci);
+     }},
+    {key: 'cpc', label: 'CPC', sortVal: r => r.cpc, defDir: 1,
+     fill: (td, r) => {
+       setBar(td, maxCpc > 0 ? r.cpc / maxCpc * 100 : 0, 'color-mix(in srgb, var(--muted) 14%, transparent)');
+       const num = document.createElement('span'); num.className = 'lb-num';
+       num.textContent = fmtUsd(r.cpc); td.appendChild(num);
+     }},
+    {key: 'cost', label: 'Cost', sortVal: r => r.cost, defDir: 1,
+     fill: (td, r) => { td.textContent = fmtUsd(r.cost); }},
+    {key: 'over', label: 'Over-call', sortVal: r => r.over || 0, defDir: 1,
+     fill: (td, r) => { td.textContent = (typeof r.over === 'number') ? Math.round(r.over * 100) + '%' : '—'; }},
+    {key: 'distract', label: 'Distractor', sortVal: r => r.distract, defDir: 1,
+     fill: (td, r) => { td.textContent = r.distract > 0 ? Math.round(r.distract * 100) + '%' : '—'; if (r.distract > 0) td.style.color = 'var(--bad)'; }},
+    {key: 'latency', label: 'Latency', sortVal: r => r.latency || 0, defDir: 1,
+     fill: (td, r) => { td.textContent = (typeof r.latency === 'number') ? (r.latency < 10 ? r.latency.toFixed(2) : r.latency.toFixed(1)) + 's' : '—'; }},
+  ];
+
+  let sortKey = 'rank', sortDir = 1;
+  function applySort() {
+    const col = cols.find(c2 => c2.key === sortKey);
+    rows.sort((a, b) => {
+      const av = col.sortVal(a), bv = col.sortVal(b);
+      if (av < bv) return -1 * sortDir;
+      if (av > bv) return 1 * sortDir;
+      // tiebreak: lower rank, then measured (CI'd) before single-run, then higher score, then cheaper
+      return (a.rank - b.rank) || ((b.hasCI ? 1 : 0) - (a.hasCI ? 1 : 0)) || (b.mid - a.mid) || (a.cpc - b.cpc);
+    });
+  }
+
+  const wrap = document.createElement('div'); wrap.className = 'lb-wrap';
+  const tbl = document.createElement('table'); tbl.className = 'leaderboard';
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  cols.forEach(col => {
+    const th = document.createElement('th');
+    if (col.cls) th.className = col.cls;
+    th.dataset.key = col.key;
+    th.appendChild(document.createTextNode(col.label));
+    const arrow = document.createElement('span'); arrow.className = 'arrow'; th.appendChild(arrow);
+    th.addEventListener('click', () => {
+      if (sortKey === col.key) { sortDir = -sortDir; }
+      else { sortKey = col.key; sortDir = col.defDir; }
+      render();
+    });
+    htr.appendChild(th);
+  });
+  thead.appendChild(htr); tbl.appendChild(thead);
+  const tbody = document.createElement('tbody'); tbl.appendChild(tbody);
+
+  function render() {
+    applySort();
+    tbody.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      if (r.rank === 1 && r.hasCI) tr.className = 'lead';
+      cols.forEach(col => {
+        const td = document.createElement('td');
+        if (col.cls) td.className = col.cls;
+        col.fill(td, r);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    htr.querySelectorAll('th').forEach(th => {
+      const isSorted = th.dataset.key === sortKey;
+      th.classList.toggle('sorted', isSorted);
+      const ar = th.querySelector('.arrow');
+      ar.textContent = isSorted ? (sortDir === 1 ? '▲' : '▼') : '';
+    });
+  }
+  render();
+  wrap.appendChild(tbl);
+  c.appendChild(wrap);
+}
+
+// ---- Parallel-invocation task strips ----
+function drawParallel(mount) {
   const tasks = Array.isArray(DATA.parallel_tasks)
     ? DATA.parallel_tasks
     : (DATA.parallel_task ? [DATA.parallel_task] : []);
@@ -743,10 +916,10 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     return '<code>' + t.task_id + '</code> <b>' + np + '/' + t.per_config.length + '</b>';
   }).join('  ·  ');
 
-  const c = card('04', 'Parallel-invocation tasks',
+  const c = card('', 'Parallel-invocation tasks',
     'Each needs <b>2+ tool calls in one batch</b>, with every spec matched. Pass rates: ' +
     (passSummary || '—') + '. The dominant failure mode is collapsing to metadata-only ' +
-    '<code>list_documents</code> instead of parallel <code>search</code>.', {wide:true});
+    '<code>list_documents</code> instead of parallel <code>search</code>.', {wide: true, mount});
 
   if (!tasks.length) {
     const note = document.createElement('div');
@@ -794,77 +967,20 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     scroll.appendChild(tbl);
     c.appendChild(scroll);
   });
-})();
+}
 
-// ============================================================
-// CHART 5 — Distractor picks
-// ============================================================
-(function () {
-  const picked = DATA.distractor_picks;
-  const allConfigs = DATA.configs.map(d=>d.label);
-  const distractorTools = [...new Set(picked.flatMap(p => p.picks.map(x => x.tool)))];
-  const offender = picked
-    .map(p => ({ label: p.label, calls: p.picks.reduce((s,x)=>s+x.count,0), tasks: p.picks.length }))
-    .sort((a,b) => b.calls - a.calls)[0];
-  const toolLine = distractorTools.length === 1
-    ? 'every pick was <code>' + distractorTools[0] + '</code> (the near-miss that shadows <code>get_document</code>)'
-    : 'picks landed on ' + distractorTools.map(t => '<code>' + t + '</code>').join(', ');
-  const c = card('05', 'Distractor-tool picks · the saturation canary',
-    '<b>' + picked.length + ' of ' + NC + '</b> configs reached for a distractor; <b>' + toolLine + '</b>. ' +
-    'The categorically-wrong distractors drew <b>zero</b> — the hardened near-miss tools are what bait models. ' +
-    (offender ? 'Worst offender: <b>' + offender.label + '</b> (' + offender.calls + ' calls across ' + offender.tasks + ' task' + (offender.tasks>1?'s':'') + ').' : ''));
-
-  const W = 540, m={t:10,r:24,b:24,l:128};
-  const rows = allConfigs;
-  const rowH = 24;
-  const H = m.t+m.b+rows.length*rowH;
-  const iw = W-m.l-m.r;
-  // max total picks for scaling
-  const byLabel = {};
-  picked.forEach(p => byLabel[p.label] = p);
-  const totals = rows.map(l => byLabel[l] ? byLabel[l].picks.reduce((s,x)=>s+x.count,0) : 0);
-  const maxTot = Math.max(1, ...totals);
-  const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
-  rows.forEach((label, i) => {
-    const conf = DATA.configs.find(d=>d.label===label);
-    const y = m.t+i*rowH;
-    const p = byLabel[label];
-    svg.appendChild(el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label'}, label));
-    if (!p) {
-      svg.appendChild(el('text', {x:m.l+4, y:y+rowH/2+4, class:'bar-val', fill:'var(--good)'}, '— clean —'));
-      return;
-    }
-    const tot = p.picks.reduce((s,x)=>s+x.count,0);
-    const ntasks = p.picks.length;
-    const bw = iw*(tot/maxTot);
-    svg.appendChild(el('rect', {x:m.l, y:y+4, width:bw, height:rowH-10, fill:'var(--bad)', rx:3, opacity:0.85}));
-    svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'},
-      tot + ' calls · ' + ntasks + ' task' + (ntasks>1?'s':'') + ' (' + p.picks.map(x=>x.task.replace(/_0\d$/,m=>m)).map(t=>t).join(', ') + ')'));
-  });
-  c.appendChild(svg);
-  // note line
-  const note = document.createElement('div');
-  note.className='insight';
-  note.style.marginTop='12px';
-  note.style.borderLeftColor='var(--bad)';
-  note.innerHTML = 'Red bar length = total distractor calls (scaled). All distractor picks = <code>summarize_document</code>.';
-  c.appendChild(note);
-})();
-
-// ============================================================
-// CHART 6 — Per-chain heatmap
-// ============================================================
-(function () {
+// ---- Per-chain performance heatmap ----
+function drawHeatmap(mount) {
   const chains = Object.keys(DATA.meta.chains);
   const chainStats = chains.map(ch => {
     const best = Math.max(...DATA.chains_per_config.map(r => r.chains[ch].correct));
     return { ch, best, total: DATA.meta.chains[ch] };
   });
   const hardestChain = chainStats.slice().sort((a,b) => (a.best/a.total) - (b.best/b.total))[0];
-  const c = card('06', 'Per-chain performance heatmap',
+  const c = card('', 'Per-chain performance heatmap',
     'Rows = configs, columns = the ' + chains.length + ' multi-step chains, cell = correct/total (color intensity = fraction solved). ' +
     '<b>' + hardestChain.ch + ' (' + hardestChain.total + ' steps) is the wall</b> — best result is ' + hardestChain.best + '/' + hardestChain.total + ', nobody clears it. ' +
-    'The other chains are more tractable.', {wide:true});
+    'The other chains are more tractable.', {wide: true, mount});
   const cpc = DATA.chains_per_config;
   const tbl = document.createElement('table');
   tbl.className='matrix';
@@ -885,7 +1001,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
       const frac = cell.correct/cell.total;
       const td = document.createElement('td'); td.className='cell';
       const box = document.createElement('div'); box.className='cellbox';
-      // green ramp (capped so theme heading text stays readable on the tint)
       const pct = Math.round((0.12 + frac*0.42) * 100);
       box.style.background = `color-mix(in srgb, var(--good) ${pct}%, transparent)`;
       box.style.color = 'var(--heading)';
@@ -900,25 +1015,22 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   scroll.className = 'table-scroll';
   scroll.appendChild(tbl);
   c.appendChild(scroll);
-})();
+}
 
-// ============================================================
-// CHART 7 — Task difficulty
-// ============================================================
-(function () {
+// ---- Task difficulty · configs passing each task ----
+function drawDifficulty(mount) {
   const tasks = [...DATA.task_difficulty].sort((a,b) => a.n_pass - b.n_pass);
   const h0 = tasks[0], h1 = tasks[1];
-  const c = card('07', 'Task difficulty · configs passing each task (of ' + NC + ')',
+  const c = card('', 'Task difficulty · configs passing each task (of ' + NC + ')',
     'Floor tasks (green-marked) are solved by all ' + NC + ' — the easy baseline. Low-pass discriminators are where CPC means something. ' +
     'The hardest: <b>' + h0.task_id + '</b> (' + h0.n_pass + '/' + NC + ') and <b>' + h1.task_id + '</b> (' + h1.n_pass + '/' + NC + '). ' +
     '<span class="tag par">PAR</span> = parallel, <span class="tag alt">ALT</span> = adjudicated alternative, <span class="tag floor">FLOOR</span> = baseline floor.',
-    {wide:true});
+    {wide: true, mount});
   const W = 1100, m={t:10,r:40,b:8,l:230};
   const rowH = 21;
   const H = m.t+m.b+tasks.length*rowH;
   const iw = W-m.l-m.r;
   const svg = el('svg', {viewBox:`0 0 ${W} ${H}`});
-  // gridlines for thresholds
   [5, NC].forEach(v => {
     const x = m.l + iw*(v/NC);
     svg.appendChild(el('line', {x1:x,y1:m.t-2,x2:x,y2:H-m.b, stroke:'var(--border)','stroke-dasharray':'3 3'}));
@@ -931,19 +1043,16 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     if (t.n_pass === NC) col = 'var(--good)';
     else if (t.n_pass >= 9) col = 'var(--good-2)';
     else if (t.n_pass >= 6) col = 'var(--warn)';
-    // label + tags
     const labelG = el('text', {x:m.l-8, y:y+rowH/2+4, 'text-anchor':'end', class:'bar-label', 'font-size':'11px'}, t.task_id);
     svg.appendChild(labelG);
     svg.appendChild(el('rect', {x:m.l, y:y+3, width:iw, height:rowH-7, fill:'var(--panel-2)', rx:2}));
     svg.appendChild(el('rect', {x:m.l, y:y+3, width:bw, height:rowH-7, fill:col, rx:2, opacity:0.92}));
     svg.appendChild(el('text', {x:m.l+bw+6, y:y+rowH/2+4, class:'bar-val'}, t.n_pass + '/' + NC));
-    // tags after value
     let tx = m.l + iw + 4;
     const tags = [];
     if (t.is_parallel) tags.push(['PAR','var(--accent)','color-mix(in srgb, var(--accent) 18%, transparent)']);
     if (t.is_alt) tags.push(['ALT','var(--warn)','color-mix(in srgb, var(--warn) 20%, transparent)']);
     if (t.is_floor) tags.push(['FLR','var(--good)','color-mix(in srgb, var(--good) 16%, transparent)']);
-    // draw tags as small rects to the right of label area instead (left side)
     let lx = m.l - 8 - (t.task_id.length*5.6) - 6;
     tags.forEach(([txt,fg,bg]) => {
       lx -= 30;
@@ -952,22 +1061,20 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     });
   });
   c.appendChild(svg);
-})();
+}
 
-// ============================================================
-// CHART 8 — Before / After
-// ============================================================
-(function () {
+// ---- Before / After · the hardening widened the spread ----
+function drawBeforeAfter(mount) {
   const priorScores = DATA.prior_run_june10.map(d => d.score);
   const priorN = DATA.prior_run_june10[0].n;
   const priorLo = Math.min(...priorScores), priorHi = Math.max(...priorScores);
   const nowScores = DATA.configs.map(d => d.score);
   const nowLo = Math.min(...nowScores), nowHi = Math.max(...nowScores);
-  const c = card('08', 'Before / After · the hardening widened the spread',
+  const c = card('', 'Before / After · the hardening widened the spread',
     'June-10 (' + priorN + ' tasks): everyone scored <b>' + priorLo + '–' + priorHi + '</b>, range <b>' + (priorHi-priorLo) + '</b> — saturated, indistinguishable. ' +
     'June-12 (' + N + ' tasks, hardened): scores spread <b>' + nowLo + '–' + nowHi + '</b>, range <b>' + (nowHi-nowLo) + '</b>. ' +
     'A wider spread means the benchmark now discriminates — CPC differences are signal, not noise. ' +
-    '(Shown as accuracy % since task counts differ; dot positions are <b>not</b> task-for-task comparable across runs.)', {wide:true});
+    '(Shown as accuracy % since task counts differ; dot positions are <b>not</b> task-for-task comparable across runs.)', {wide: true, mount});
 
   const prior = DATA.prior_run_june10.map(d => ({label:d.label, acc:d.score/d.n}));
   const now = DATA.configs.map(d => ({label:d.label, acc:d.score/N}));
@@ -981,7 +1088,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     {name:'June 12 · ' + N + ' tasks · range ' + (nowHi-nowLo), y: ih*0.78, data: now, lo: Math.min(...now.map(d=>d.acc)), hi: Math.max(...now.map(d=>d.acc))},
   ];
   const sx = a => iw*a;
-  // axis
   for (let i=0;i<=5;i++){
     const a=i/5; const x=sx(a);
     g.appendChild(el('line',{x1:x,y1:-6,x2:x,y2:ih,stroke:'var(--grid)','stroke-dasharray':'2 3'}));
@@ -989,45 +1095,41 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   }
   g.appendChild(el('text',{x:iw/2,y:ih+40,'text-anchor':'middle',class:'axis-label'},'Accuracy (score / task count)'));
   lanes.forEach(lane => {
-    // spread band
     g.appendChild(el('rect',{x:sx(lane.lo), y:lane.y-9, width:sx(lane.hi)-sx(lane.lo), height:18, fill:'var(--accent)', opacity:0.10, rx:9}));
     g.appendChild(el('line',{x1:sx(lane.lo),y1:lane.y,x2:sx(lane.hi),y2:lane.y,stroke:'var(--border)','stroke-width':2}));
     g.appendChild(el('text',{x:0,y:lane.y-16,class:'axis-label','font-size':'11.5px',fill:'var(--text)'},lane.name));
     lane.data.forEach(d => {
       g.appendChild(el('circle',{cx:sx(d.acc),cy:lane.y,r:5,fill:'var(--accent)',stroke:'var(--panel)','stroke-width':1,opacity:0.85}));
     });
-    // range bracket label
     g.appendChild(el('text',{x:sx(lane.hi)+8,y:lane.y+4,class:'bar-val'}, 'spread ' + ((lane.hi-lane.lo)*100).toFixed(0) + ' pts'));
   });
   c.appendChild(svg);
-})();
+}
 
-// ============================================================
-// CHART 9 — Fable effort frontier
-// ============================================================
-(function () {
+// ---- Fable 5 effort frontier ----
+function drawFable(mount) {
   const fable = DATA.configs.filter(d => d.model === 'claude-fable-5')
     .sort((a,b) => ({low:0,medium:1,high:2}[a.effort] - {low:0,medium:1,high:2}[b.effort]));
+  if (fable.length < 2) return;
   const fbTok = fable.map(d => d.output_tokens);
   const fbScore = fable.map(d => d.score);
   const scoreDir = fbScore[fbScore.length-1] > fbScore[0] ? 'rises'
     : fbScore[fbScore.length-1] < fbScore[0] ? 'falls' : 'stays flat';
-  const c = card('09', 'Fable 5 effort frontier · cost rises, quality does not',
+  const c = card('', 'Fable 5 effort frontier · cost rises, quality does not',
     'Sweeping the effort knob low → med → high: <b>output tokens (' + fbTok.join('→') + ')</b> and <b>cost rise monotonically</b>, ' +
     'but <b>score ' + scoreDir + ' (' + fbScore.join(' → ') + ')</b>. The effort knob moves cost, not quality — ' +
-    'the cheapest setting (<b>low</b>) is the rational default.');
+    'the cheapest setting (<b>low</b>) is the rational default.', {mount});
   const W=540,H=300,m={t:24,r:54,b:46,l:54};
   const iw=W-m.l-m.r, ih=H-m.t-m.b;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
   const g=el('g',{transform:`translate(${m.l},${m.t})`});
   svg.appendChild(g);
   const xs = fable.map((d,i)=> iw*(i/(fable.length-1)));
-  // left axis: tokens & cost (normalized separately, plotted as two lines); right axis score
   const maxTok = Math.max(...fable.map(d=>d.output_tokens));
   const maxCost = Math.max(...fable.map(d=>d.total_cost_usd));
   const syTok = v => ih - (v/maxTok)*ih*0.92;
   const syCost = v => ih - (v/maxCost)*ih*0.92;
-  const syScore = v => ih - ((v-17)/(20-17))*ih*0.9; // score band 17..20
+  const syScore = v => ih - ((v-17)/(20-17))*ih*0.9;
 
   for(let i=0;i<=4;i++){ const y=ih*i/4; g.appendChild(el('line',{x1:0,y1:y,x2:iw,y2:y,stroke:'var(--grid)','stroke-dasharray':'2 3'})); }
   fable.forEach((d,i)=> g.appendChild(el('text',{x:xs[i],y:ih+18,'text-anchor':'middle',class:'tick'}, d.effort)));
@@ -1046,40 +1148,29 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   line(d=>d.total_cost_usd, syCost, 'var(--anthropic-2)', 'cost', '4 3');
   line(d=>d.score, syScore, 'var(--good)', 'score');
 
-  // value annotations
   fable.forEach((d,i)=>{
     g.appendChild(el('text',{x:xs[i],y:syTok(d.output_tokens)-8,'text-anchor':'middle','font-size':'9.5px',fill:'var(--anthropic)'}, d.output_tokens));
     g.appendChild(el('text',{x:xs[i],y:syScore(d.score)-8,'text-anchor':'middle','font-size':'9.5px',fill:'var(--good)','font-weight':'700'}, d.score));
   });
-  // mini legend
   const leg = [['output tokens','var(--anthropic)'],['cost','var(--anthropic-2)'],['score (17–20)','var(--good)']];
   leg.forEach(([t,col],i)=>{
-    const ly = -8 + i*0; const lx = i*0;
     const gx = i* (iw/3);
     g.appendChild(el('rect',{x:gx,y:-18,width:10,height:10,rx:2,fill:col}));
     g.appendChild(el('text',{x:gx+14,y:-9,'font-size':'10px',fill:'var(--muted)'},t));
   });
   c.appendChild(svg);
-})();
+}
 
-// ============================================================
-// CHART 10 — History over time (dated runs) · the secondary north star
-// ============================================================
-(function () {
-  // Render contract: window.__BENCH_HISTORY__ is a newest-first slim run array.
-  // Offline build inlines it; Pages build fetches runs.json + each run file.
-  // Each run: { date, note, n_tasks, configs:[{label,provider,accuracy,cpc_usd,
-  // score,n_tasks}], per_config_task_scores:{label:{task_id:0|1}} }.
+// ---- History over time (dated runs) · the secondary north star ----
+function drawHistory(mount) {
   const hist = Array.isArray(window.__BENCH_HISTORY__) ? window.__BENCH_HISTORY__ : [];
-  // Chronological (oldest -> newest) so columns read left-to-right over time.
   const runs = hist.slice().reverse();
 
-  const c = card('10', 'History over time · dated runs',
+  const c = card('', 'History over time · dated runs',
     'The secondary north-star: CPC and accuracy across <b>dated run snapshots</b>, so trends stay visible as the dataset and models change. ' +
     'Each config is one provider-colored segment between runs (a slope, not a smoothed trend) — honest at two points and built to extend as runs accumulate.',
-    {wide:true});
+    {wide: true, mount});
 
-  // ---- degraded: need >=2 runs to show a trend ----
   if (runs.length < 2) {
     const d = document.createElement('div');
     d.className = 'hist-degraded';
@@ -1096,11 +1187,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     return;
   }
 
-  // ---- spine: task ids present in EVERY run (only task-for-task comparable set) ----
-  // Per-run task set = the UNION of task ids across that run's configs. Every config
-  // in a run scores the same task set today (an implicit invariant), so the union and
-  // any single config's keys are identical; taking the union defensively keeps the
-  // spine correct even if a future run scores some configs on a partial task set.
   const taskSets = runs.map(r => {
     const pcs = r.per_config_task_scores || {};
     const union = new Set();
@@ -1113,18 +1199,14 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   }, null)];
   const spineCount = spine.length;
   const fullMax = Math.max(...runs.map(r => r.n_tasks || 0));
-  // Soft floor: a 1-4 task intersection is too thin to be a meaningful task-for-task
-  // comparison, so fall back to Full-run scope rather than surface a misleading spine.
   const SPINE_MIN = 5;
   const haveSpine = spineCount >= SPINE_MIN;
 
-  // ---- config roster: latest-run order, matched by label across runs ----
   const latest = runs[runs.length - 1];
   const roster = latest.configs.map(cfg => cfg.label);
   const provByLabel = {};
   runs.forEach(r => r.configs.forEach(cfg => { provByLabel[cfg.label] = cfg.provider; }));
 
-  // value accessors per (run, label) -> number | null (null = config absent that run)
   function cfgIn(run, label) { return run.configs.find(x => x.label === label) || null; }
   function spineAcc(run, label) {
     const pcs = (run.per_config_task_scores || {})[label];
@@ -1136,11 +1218,9 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   function fullAcc(run, label) { const cfg = cfgIn(run, label); return cfg ? cfg.accuracy : null; }
   function cpcVal(run, label) { const cfg = cfgIn(run, label); return cfg ? cfg.cpc_usd : null; }
 
-  // ---- state ----
-  let scope = haveSpine ? 'spine' : 'full';   // 'spine' | 'full'
-  let metric = 'cpc';                          // 'cpc' | 'acc'
+  let scope = haveSpine ? 'spine' : 'full';
+  let metric = 'cpc';
 
-  // ---- controls ----
   const controls = document.createElement('div');
   controls.className = 'hist-controls';
   function segGroup(label, opts, getActive, onPick) {
@@ -1175,19 +1255,16 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   controls.appendChild(scopeGroup);
   c.appendChild(controls);
 
-  // ---- caveat callout (verbatim notes; always visible without interaction) ----
   const caveat = document.createElement('div');
   caveat.className = 'hist-caveat';
   c.appendChild(caveat);
 
-  // ---- chart mount ----
-  const mount = document.createElement('div');
-  c.appendChild(mount);
+  const mountEl = document.createElement('div');
+  c.appendChild(mountEl);
 
   function activeAcc(run, label) { return scope === 'spine' ? spineAcc(run, label) : fullAcc(run, label); }
 
   function redraw() {
-    // refresh control active states
     controls.querySelectorAll('.seg').forEach(seg => {
       seg.querySelectorAll('button').forEach(b => {
         const isMetric = b.dataset.val === 'cpc' || b.dataset.val === 'acc';
@@ -1196,7 +1273,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
       });
     });
 
-    // caveat text
     const runList = runs.map(r => '<code>' + r.date + '</code> (' + r.n_tasks + ' tasks)').join(' → ');
     let comparability;
     if (metric === 'acc' && scope === 'spine') {
@@ -1214,9 +1290,8 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
       '<span class="runnote">Runs: ' + runList + '. Each run\'s own note:</span>' +
       runs.map(r => '<span class="runnote">› <code>' + r.date + '</code>: ' + (r.note || '—') + '</span>').join('');
 
-    // build chart
-    mount.innerHTML = '';
-    mount.appendChild(buildChart());
+    mountEl.innerHTML = '';
+    mountEl.appendChild(buildChart());
   }
 
   function fmtAccPct(a) { return Math.round(a * 100) + '%'; }
@@ -1229,28 +1304,23 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     const g = el('g', { transform: `translate(${m.l},${m.t})` });
     svg.appendChild(g);
 
-    // x: one column per run, evenly spaced
     const nR = runs.length;
     const cx = i => nR === 1 ? iw / 2 : iw * (i / (nR - 1));
 
-    // collect values per config -> [{i, v}] (skip null/0-for-log)
     const valueOf = isCpc
       ? (run, label) => cpcVal(run, label)
       : (run, label) => activeAcc(run, label);
 
-    // y scale
     let sy, yTicks, yFmt, yTitle;
     if (isCpc) {
-      // log y over positive CPCs; $0 (gemma/local) pinned to a baseline lane.
       const all = [];
       roster.forEach(l => runs.forEach((r, i) => { const v = valueOf(r, l); if (v != null && v > 0) all.push(v); }));
       const lo = Math.min(...all), hi = Math.max(...all);
       const l0 = Math.log10(lo) - 0.15, l1 = Math.log10(hi) + 0.12;
-      const zeroY = ih + 16; // $0 lane sits just below the plotted log range
+      const zeroY = ih + 16;
       sy = v => (v != null && v <= 0) ? zeroY : ih - (Math.log10(v) - l0) / (l1 - l0) * ih;
       yFmt = fmtUsd;
       yTitle = 'Cost per correct (USD, log scale)';
-      // decade ticks
       yTicks = [];
       const d0 = Math.ceil(l0), d1 = Math.floor(l1);
       for (let d = d0; d <= d1; d++) yTicks.push(Math.pow(10, d));
@@ -1261,7 +1331,6 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
       yTicks = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
     }
 
-    // gridlines + y ticks
     yTicks.forEach(v => {
       const y = isCpc ? sy(v) : sy(v);
       if (y == null || y < -2 || y > ih + 2) return;
@@ -1269,53 +1338,43 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
       g.appendChild(el('text', { x: -10, y: y + 3, 'text-anchor': 'end', class: 'tick' }, yFmt(v)));
     });
     if (isCpc) {
-      // $0 lane label (local/free configs)
       const zy = ih + 16;
       g.appendChild(el('line', { x1: 0, y1: zy, x2: iw, y2: zy, stroke: 'var(--grid)', 'stroke-dasharray': '1 4' }));
       g.appendChild(el('text', { x: -10, y: zy + 3, 'text-anchor': 'end', class: 'tick', fill: 'var(--ollama)' }, '$0'));
     }
 
-    // x columns: vertical guide + date label
     runs.forEach((r, i) => {
       const x = cx(i);
       g.appendChild(el('line', { x1: x, y1: -6, x2: x, y2: ih + (isCpc ? 22 : 0), stroke: 'var(--border)', 'stroke-dasharray': '3 3' }));
       g.appendChild(el('text', { x: x, y: ih + 38, 'text-anchor': 'middle', class: 'tick', fill: 'var(--text)' }, r.date));
       g.appendChild(el('text', { x: x, y: ih + 50, 'text-anchor': 'middle', class: 'tick' }, r.n_tasks + ' tasks'));
     });
-    // y axis title
     g.appendChild(el('text', { x: -58, y: ih / 2, 'text-anchor': 'middle', class: 'axis-label', transform: `rotate(-90 -58 ${ih / 2})` }, yTitle));
 
-    // one slope/polyline per config; endpoint legend (label + newest value)
-    // is drawn to the right with anti-collision so dense log clusters stay legible.
     const labelSlots = [];
     roster.forEach(label => {
       const col = provColor(provByLabel[label]);
       const pts = [];
       runs.forEach((r, i) => { const v = valueOf(r, label); if (v != null) pts.push({ i, v, y: sy(v) }); });
       if (!pts.length) return;
-      // polyline
       if (pts.length >= 2) {
         let d = '';
         pts.forEach((p, k) => { d += (k ? 'L' : 'M') + cx(p.i) + ' ' + p.y + ' '; });
         g.appendChild(el('path', { d, fill: 'none', stroke: col, 'stroke-width': 1.8, opacity: 0.82, 'stroke-linecap': 'round' }));
       }
-      // dot endpoints
       pts.forEach((p, k) => {
         const isEnd = k === pts.length - 1;
         g.appendChild(el('circle', { cx: cx(p.i), cy: p.y, r: isEnd ? 4.5 : 3.5, fill: col, stroke: 'var(--panel)', 'stroke-width': 1, opacity: 0.95 }));
       });
-      // newest endpoint anchors the right-hand legend row
       const pe = pts[pts.length - 1];
       labelSlots.push({ yTrue: pe.y, y: pe.y, label, valNew: pe.v, valOld: pts[0].v, col });
     });
 
-    // de-collide right-side legend rows (label + value share one row, ~13px tall)
     labelSlots.sort((a, b) => a.yTrue - b.yTrue);
     const minGap = 13;
     for (let k = 1; k < labelSlots.length; k++) {
       if (labelSlots[k].y - labelSlots[k - 1].y < minGap) labelSlots[k].y = labelSlots[k - 1].y + minGap;
     }
-    // clamp inside plot, then re-spread upward if the bottom overflowed
     const lastIdx = labelSlots.length - 1;
     if (labelSlots.length && labelSlots[lastIdx].y > ih + 18) {
       labelSlots[lastIdx].y = ih + 18;
@@ -1325,11 +1384,9 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
     }
     const lx = iw + 16;
     labelSlots.forEach(s => {
-      // leader line from the true datapoint to the (possibly nudged) legend row
       g.appendChild(el('line', { x1: iw + 4, y1: s.yTrue, x2: lx - 4, y2: s.y - 3, stroke: s.col, 'stroke-width': 1, opacity: 0.35 }));
       g.appendChild(el('circle', { cx: lx, cy: s.y - 3, r: 3.5, fill: s.col }));
       g.appendChild(el('text', { x: lx + 9, y: s.y, 'font-size': '10.5px', fill: 'var(--text)' }, s.label));
-      // newest value, mono, pinned to the far right edge of the viewBox
       g.appendChild(el('text', { x: W - m.l - 6, y: s.y, 'text-anchor': 'end', 'font-size': '9.5px', fill: 'var(--muted)', class: 'bar-val' }, yFmt(s.valNew)));
     });
 
@@ -1337,109 +1394,46 @@ const frontier = (() => { const f = []; let best = -1; for (const p of sortedByC
   }
 
   redraw();
-})();
+}
 
-// ============================================================
-// CHART 11 — Multi-rep score · 95% Wilson CI (the "no strict #1")
-// ============================================================
-(function () {
-  const reps = window.__BENCH_REPS__;
-  const c = card('11', 'Multi-rep score · 95% Wilson CI · the "no strict #1"',
-    'Each config re-run <b>N times</b> on the ' + N + '-task set. The dot is the <b>median</b> score; the solid bar is the <b>95% Wilson CI</b> on pooled accuracy (sampling error, roughly ±2 tasks); the faint range is the <b>per-rep min–max</b> (run-to-run signal — a different thing). ' +
-    'The leader\'s interval (shaded) overlaps the entire top cluster, so there is <b>no strict #1</b> — read tiers, not a leaderboard. Cost separates configs far more cleanly than score (see 01 / 03). <b>Fable 5 omitted</b>: API access suspended June 12–13, so it stays at its single-run r2 value.',
-    {wide:true});
-
-  if (!reps || !Array.isArray(reps.configs) || reps.configs.length === 0) {
-    const d = document.createElement('div');
-    d.className = 'hist-degraded';
-    d.innerHTML = 'No multi-rep aggregate is available. The offline build inlines ' +
-      '<code>viz/data/reps_*.json</code>; the live site fetches it. Run ' +
-      '<code>viz/aggregate_reps.py</code> over a reps directory to populate this view.';
-    c.appendChild(d);
-    return;
-  }
-
-  const rows = [...reps.configs].sort((a, b) => b.score_median - a.score_median);
-  const nTasks = (reps.meta && reps.meta.n_tasks) || N;
-  const repCount = rows[0] && rows[0].n_reps;
-
-  const W = 1100, rowH = 30, m = {t: 34, r: 168, b: 42, l: 150};
-  const H = m.t + m.b + rows.length * rowH;
-  const iw = W - m.l - m.r;
-  const svg = el('svg', {viewBox: `0 0 ${W} ${H}`});
-
-  const los = rows.map(d => d.ci_low_score), his = rows.map(d => d.ci_high_score);
-  const lo = Math.max(0, Math.floor(Math.min(...los) - 0.5));
-  const hi = Math.min(nTasks, Math.ceil(Math.max(...his) + 0.5));
-  const sx = v => m.l + iw * (v - lo) / (hi - lo);
-  const yBot = m.t + rows.length * rowH;
-
-  // leader CI band — the "everything overlapping is tied" zone
-  const lead = rows[0];
-  svg.appendChild(el('rect', {x: sx(lead.ci_low_score), y: m.t - 8, width: sx(lead.ci_high_score) - sx(lead.ci_low_score), height: rows.length * rowH + 8, fill: 'var(--accent)', opacity: 0.07, rx: 4}));
-  svg.appendChild(el('text', {x: (sx(lead.ci_low_score) + sx(lead.ci_high_score)) / 2, y: m.t - 14, 'text-anchor': 'middle', class: 'axis-label', fill: 'var(--accent)', 'font-size': '10px'}, 'leader 95% CI · overlap = statistically tied'));
-
-  // integer score gridlines
-  for (let v = lo; v <= hi; v++) {
-    const x = sx(v);
-    svg.appendChild(el('line', {x1: x, y1: m.t - 8, x2: x, y2: yBot, stroke: 'var(--grid)', 'stroke-dasharray': '2 3'}));
-    svg.appendChild(el('text', {x: x, y: yBot + 16, 'text-anchor': 'middle', class: 'tick'}, v));
-  }
-  svg.appendChild(el('text', {x: m.l + iw / 2, y: H - 5, 'text-anchor': 'middle', class: 'axis-label'}, 'Score (of ' + nTasks + ')  ·  ' + (repCount || 'N') + ' reps per config'));
-
-  rows.forEach((d, i) => {
-    const y = m.t + i * rowH + rowH / 2;
-    const col = provColor(d.provider);
-    // per-rep min–max range (faint, behind)
-    svg.appendChild(el('rect', {x: sx(d.score_min), y: y - 7, width: Math.max(2, sx(d.score_max) - sx(d.score_min)), height: 14, fill: col, opacity: 0.12, rx: 7}));
-    // Wilson CI whisker
-    svg.appendChild(el('line', {x1: sx(d.ci_low_score), y1: y, x2: sx(d.ci_high_score), y2: y, stroke: col, 'stroke-width': 2, opacity: 0.85}));
-    [d.ci_low_score, d.ci_high_score].forEach(v => svg.appendChild(el('line', {x1: sx(v), y1: y - 4, x2: sx(v), y2: y + 4, stroke: col, 'stroke-width': 2, opacity: 0.85})));
-    // median dot
-    svg.appendChild(el('circle', {cx: sx(d.score_median), cy: y, r: 4.5, fill: col, stroke: 'var(--panel)', 'stroke-width': 1.5}));
-    // labels
-    svg.appendChild(el('text', {x: m.l - 10, y: y + 4, 'text-anchor': 'end', class: 'bar-label'}, d.label));
-    svg.appendChild(el('text', {x: m.l + iw + 8, y: y + 4, class: 'bar-val'}, d.score_median + '  [' + d.ci_low_score.toFixed(1) + '–' + d.ci_high_score.toFixed(1) + ']'));
+// ---- dashboard sub-tabs ----
+function buildSubtabs(groups) {
+  const wrap = document.createElement('div');
+  wrap.className = 'subtabs';
+  const nav = document.createElement('div');
+  nav.className = 'subtabs-nav';
+  wrap.appendChild(nav);
+  const panels = [];
+  groups.forEach((grp, idx) => {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.textContent = grp.label;
+    const panel = document.createElement('div');
+    panel.className = 'subpanel' + (idx === 0 ? ' active' : '');
+    if (idx === 0) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      nav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      panels.forEach(p => p.classList.remove('active'));
+      panel.classList.add('active');
+    });
+    nav.appendChild(btn);
+    wrap.appendChild(panel);
+    panels.push(panel);
+    grp.render(panel);
   });
-  c.appendChild(svg);
-})();
+  document.getElementById('main').appendChild(wrap);
+}
 
-// ============================================================
-// CHART 12 — Over-call rate (unscored behavioral metric, #30)
-// ============================================================
+// ---- orchestrate: hero scatter, CI forest, backbone table, then tabs ----
 (function () {
-  const have = DATA.configs.filter(d => typeof d.over_call_rate === 'number');
-  const top = have.length ? [...have].sort((a, b) => b.over_call_rate - a.over_call_rate)[0] : null;
-  const c = card('12', 'Over-call rate · tool calls beyond the task ask',
-    'Unscored behavioral metric: the share of tasks where a config fired <b>more tool calls than the task needed</b>. ' +
-    'Over-calling is not wrong per se, but it inflates cost and is under-taxed by all-or-nothing scoring — a CPC tax that does not show up in the score. ' +
-    (top ? '<b>' + top.label + '</b> over-calls most (' + Math.round(top.over_call_rate * 100) + '%); configs at 0 never exceed the ask.' : ''));
-
-  if (have.length === 0) {
-    const d = document.createElement('div');
-    d.className = 'hist-degraded';
-    d.innerHTML = 'No <code>over_call_rate</code> in this run. Re-export with the current ' +
-      '<code>viz/export_bench_data.py</code> to populate this metric.';
-    c.appendChild(d);
-    return;
-  }
-
-  const rows = [...have].sort((a, b) => b.over_call_rate - a.over_call_rate);
-  const W = 540, rowH = 24, m = {t: 6, r: 70, b: 8, l: 128};
-  const H = m.t + m.b + rows.length * rowH;
-  const iw = W - m.l - m.r;
-  const svg = el('svg', {viewBox: `0 0 ${W} ${H}`});
-  const maxV = Math.max(0.0001, ...rows.map(d => d.over_call_rate));
-  rows.forEach((d, i) => {
-    const y = m.t + i * rowH;
-    const bw = iw * (d.over_call_rate / maxV);
-    svg.appendChild(el('text', {x: m.l - 8, y: y + rowH / 2 + 4, 'text-anchor': 'end', class: 'bar-label'}, d.label));
-    svg.appendChild(el('rect', {x: m.l, y: y + 4, width: iw, height: rowH - 9, fill: 'var(--panel-2)', rx: 3}));
-    svg.appendChild(el('rect', {x: m.l, y: y + 4, width: Math.max(d.over_call_rate > 0 ? 2 : 0, bw), height: rowH - 9, fill: provColor(d.provider), rx: 3, opacity: 0.9}));
-    const pct = Math.round(d.over_call_rate * 100);
-    svg.appendChild(el('text', {x: m.l + Math.max(bw, 2) + 6, y: y + rowH / 2 + 4, class: 'bar-val'}, pct + '%' + (d.over_call_count != null ? ' (' + d.over_call_count + ')' : '')));
-  });
-  c.appendChild(svg);
+  drawScatter();
+  drawForest();
+  drawLeaderboard();
+  buildSubtabs([
+    { label: 'By task', render: m => { drawParallel(m); drawHeatmap(m); drawDifficulty(m); } },
+    { label: 'Methodology', render: m => { drawBeforeAfter(m); drawFable(m); } },
+    { label: 'Over time', render: m => { drawHistory(m); } },
+  ]);
 })();
 
 </script>

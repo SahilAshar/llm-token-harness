@@ -23,7 +23,7 @@ Research (two background agents, 2026-06-13) confirmed the direction: leading AI
 
 Landing view, top to bottom:
 
-1. **Masthead + KPI strip** (already exists as `#statband`): best CPC · top accuracy · CPC spread · $0 local baseline. Keep as-is.
+1. **Masthead + editorial standfirst** (replaces the four-tile `#statband` KPI strip). One-line magazine dek stating the finding, with 1–2 emphasized numbers — e.g. *"The top five configs are within sampling noise of each other on accuracy — but cost-per-correct spans 114×. The cheapest correct answer runs $0.000386 (gpt-4o-mini); a free local model still clears 13/25."* The four evenly-weighted KPI tiles are cut: padded-for-symmetry, redundant with the hero + table, and the generic "executive dashboard" look the redesign is moving away from. The standfirst does the 5-second-reader job *and* frames why CPC exists. Numbers derive from `DATA` so the dek never goes stale.
 2. **Hero — Quality-vs-Cost scatter** (current Chart 1), full width. Y = accuracy, X = total cost (log). Highlight the cheap-and-accurate quadrant. The *only* chart that earns hero real estate.
 3. **Supporting — compact Wilson-CI forest** (current Chart 11), reduced height. The single striking "no strict #1" uncertainty visual. Visually proves the rank ties in the table below.
 4. **Backbone — one sortable model table** (new). The 30-second / 5-minute layer. Absorbs five current charts as columns (see §4).
@@ -32,7 +32,7 @@ Landing view, top to bottom:
    - **Methodology** → before/after hardening spread (8) + Fable effort frontier (9)
    - **Over time** → history-over-time dated runs (10)
 
-**Net:** 12 stacked cards → KPI strip + 1 hero + 1 forest + 1 table + 3 tabs. ~7 panels stop competing for the first screen; none are deleted.
+**Net:** 12 stacked cards → standfirst + 1 hero + 1 forest + 1 table + 3 tabs. ~7 panels stop competing for the first screen; none are deleted.
 
 ### Chart → destination map
 
