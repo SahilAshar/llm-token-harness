@@ -131,8 +131,11 @@ correct strategies, not lucky partial matches.**
 
 ### 3.1 The saturation problem (the motivating fact)
 
-The **first** benchmark run showed **10 of 15 tasks passed by everyone**.
-Single-turn selection from a small tool set is saturated industry-wide: every
+The **first** benchmark run showed **10 of 15 tasks passed by everyone**
+(provenance: this is a historical figure from the original 15-task board — it is
+*not* in the r2 snapshot; it traces to `CLAUDE.md` Design Decision 11, "the first
+benchmark run showed 10/15 tasks passed by everyone"). Single-turn selection from
+a small tool set is saturated industry-wide: every
 frontier model picks the obvious tool for the obvious task. A benchmark where
 everyone scores ~90% can't rank anything — CPC computed on it just re-prices a
 near-constant numerator. **Saturation is the disease; the four axes are the
@@ -167,10 +170,18 @@ something:
 - `easton_amendment_02`: 5/12 · `halverson_dispute_05`: 6/12 ·
   `vendor_autorenew_04`: 6/12
 
-The baseline floor still does its job: the saturated floor/near-floor tasks
+The baseline floor still does its job: these 7 tasks are saturated at 12/12
 (corvid_fetch_01, nda_inventory_01, q1_2025_inventory_01, nonsolicit_search_01,
-termination_topk_01, h2_2024_relative_01, okafor_leases_01 — all 12/12) keep
-even the weakest config off the floor.
+termination_topk_01, h2_2024_relative_01, okafor_leases_01) and keep even the
+weakest config off the floor.
+
+> **TERMINOLOGY NOTE (don't conflate two things):** these are the **7 currently-
+> saturated tasks** (a *data* observation: all at 12/12 in r2), which is broader
+> than CLAUDE.md's canonical design term **"the 6-task easy baseline floor"**
+> (the *set deliberately authored as easy*). The 7 folds in the relative-date
+> task `h2_2024_relative_01` and a saturated chain head that also happen to land
+> at 12/12. When writing, keep "7 saturated tasks" (observed) distinct from "the
+> 6-task easy baseline floor" (design term).
 
 > **FIGURE-HYGIENE WARNING (do not quote the wrong spread):** the *roadmap* doc
 > reports a "9 → 19" spread — that is the **pre-r2, 23-task** scoreboard, before
@@ -289,7 +300,9 @@ matches `viz/data/runs/2026-06-12-r2.json`.
   jump everyone else takes.
 - **CPC king at quality: claude-haiku-4-5 — 18/25 (72%), CPC $0.0042.** It is
   **2.85× cheaper per correct than gpt-5.5** while giving up 3 tasks — and it
-  ties sonnet-4-6 (also 18/25) at **~1/3 of sonnet's CPC** ($0.0042 vs $0.0126).
+  ties sonnet-4-6 (also 18/25) at **~1/3 of sonnet's CPC** ($0.0042 vs $0.0126;
+  exact ratio 3.04× off the raw figures $0.004161 vs $0.012648 — the $0.0042 /
+  $0.0126 here are both 4-dp roundings, consistent with the Facts Table, §7).
   Haiku needed no decompose, no summarize_document, and produced textbook
   filter-scoped fan-outs on both parallel tasks.
 - **The squeeze in one line:** the most accurate model and the most cost-
