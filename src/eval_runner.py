@@ -4,16 +4,18 @@ CPC (Cost Per Correct) = total run cost / number of tasks with a
 correct tool selection. CPC is None when nothing was correct.
 
 Cost attribution keys off the model name reported in the API
-*response* (``LLMResponse.model``), not the requested model: some
-models (e.g. claude-fable-5) silently reroute a small share of
-requests to a different model (claude-opus-4-8) billed at that
-model's prices.
+*response* (``LLMResponse.model``), not the requested model. This is a
+defensive measure: if a provider were to reroute or alias a request to
+a different model, the cost would still be billed at the rate of the
+model the API actually reports, rather than the requested name. No such
+reroute was observed in the current runs.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import statistics
 import time
 from datetime import datetime
 from pathlib import Path
@@ -51,6 +53,21 @@ class RunSummary(BaseModel, frozen=True):
     total_cost_usd: float
     cpc_usd: float | None
     mean_latency_seconds: float
+    effort: str | None = None
+    dataset: str | None = None
+    timestamp: str = ""
+
+
+class RunAggregate(BaseModel, frozen=True):
+    n_reps: int
+    accuracy_median: float
+    accuracy_min: float
+    accuracy_max: float
+    # Median/min/max over reps that produced at least one correct answer
+    # (CPC is None otherwise). None when no rep had a correct answer.
+    cpc_median: float | None
+    cpc_min: float | None
+    cpc_max: float | None
 
 
 def run_task(
@@ -91,7 +108,15 @@ def run_task(
     )
 
 
-def summarize(model: str, provider: str, records: list[TaskRunRecord]) -> RunSummary:
+def summarize(
+    model: str,
+    provider: str,
+    records: list[TaskRunRecord],
+    *,
+    effort: str | None = None,
+    dataset: str | None = None,
+    timestamp: str = "",
+) -> RunSummary:
     n_tasks = len(records)
     n_correct = sum(r.result.score for r in records)
     total_cost = sum(r.cost_usd for r in records)
@@ -108,6 +133,29 @@ def summarize(model: str, provider: str, records: list[TaskRunRecord]) -> RunSum
         mean_latency_seconds=(
             sum(r.latency_seconds for r in records) / n_tasks if n_tasks else 0.0
         ),
+        effort=effort,
+        dataset=dataset,
+        timestamp=timestamp,
+    )
+
+
+def aggregate_summaries(summaries: list[RunSummary]) -> RunAggregate:
+    """Aggregate accuracy and CPC across repeated runs of the same config.
+
+    CPC stats are computed only over reps that produced at least one
+    correct answer (``cpc_usd is not None``); they are None when no rep
+    did. Accuracy stats always span every rep.
+    """
+    accuracies = [s.accuracy for s in summaries]
+    cpcs = [s.cpc_usd for s in summaries if s.cpc_usd is not None]
+    return RunAggregate(
+        n_reps=len(summaries),
+        accuracy_median=statistics.median(accuracies),
+        accuracy_min=min(accuracies),
+        accuracy_max=max(accuracies),
+        cpc_median=statistics.median(cpcs) if cpcs else None,
+        cpc_min=min(cpcs) if cpcs else None,
+        cpc_max=max(cpcs) if cpcs else None,
     )
 
 
@@ -118,7 +166,9 @@ def run_eval(
     *,
     max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
     effort: str | None = None,
+    dataset: str | None = None,
 ) -> tuple[list[TaskRunRecord], RunSummary]:
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     records = [
         run_task(
             adapter,
@@ -129,19 +179,34 @@ def run_eval(
         )
         for task in tasks
     ]
-    return records, summarize(model, str(adapter.provider), records)
+    summary = summarize(
+        model,
+        str(adapter.provider),
+        records,
+        effort=effort,
+        dataset=dataset,
+        timestamp=timestamp,
+    )
+    return records, summary
 
 
 def write_results(
     records: list[TaskRunRecord],
     summary: RunSummary,
     output_dir: str | Path,
+    *,
+    rep: int | None = None,
 ) -> Path:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    # Reuse the summary's run-start timestamp so the artifact's
+    # ``timestamp`` field matches its filename; fall back to now() for
+    # summaries built without one.
+    timestamp = summary.timestamp or datetime.now().strftime("%Y%m%d-%H%M%S")
     model_slug = re.sub(r"[^A-Za-z0-9._-]+", "-", summary.model_requested)
-    path = out / f"eval_{model_slug}_{timestamp}.json"
+    # Multiple reps can land in the same second; disambiguate by index.
+    suffix = f"_rep{rep}" if rep is not None else ""
+    path = out / f"eval_{model_slug}_{timestamp}{suffix}.json"
     payload = {
         "summary": summary.model_dump(),
         "records": [r.model_dump() for r in records],

@@ -215,6 +215,27 @@ class TestScoreTask:
         assert result.matched_args == ["query"]
         assert result.failed_args == ["top_k"]
 
+    def test_actual_calls_populated_on_single_call_result(self) -> None:
+        # actual_calls must carry the full ordered call+args list on
+        # single-call paths too, not only on parallel tasks.
+        task = _make_task(
+            tool="get_document",
+            args=[
+                ExpectedArg(name="doc_id", match_type=ArgMatchType.EXACT, value="doc_3")
+            ],
+        )
+        result = score_task(
+            task,
+            [
+                ToolCall(name="search", arguments={"query": "doc_3"}),
+                ToolCall(name="get_document", arguments={"doc_id": "doc_3"}),
+            ],
+        )
+        assert result.actual_calls == [
+            {"name": "search", "arguments": {"query": "doc_3"}},
+            {"name": "get_document", "arguments": {"doc_id": "doc_3"}},
+        ]
+
     def test_batch_any_match_first_call(self) -> None:
         task = _make_task(tool="search")
         result = score_task(
