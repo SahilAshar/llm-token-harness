@@ -74,9 +74,12 @@ CHAINS = {"halverson_dispute": 5, "easton_amendment": 4, "vendor_autorenew": 4}
 ALT_TASKS = {"easton_amendment_02", "vendor_autorenew_01", "halverson_dispute_05"}
 # h2_2024_relative_01 (Axis E) saturated 12/12 on this run and is
 # reclassified as floor per the PR #22 watch item.
+# stonebridge_term_01 reclassified OUT of floor: passes only 7/12 and draws
+# summarize_document near-miss picks — a genuine discriminator, not a floor task.
+# okafor_leases_01 stays OUT of floor: a real constraint-dense task that merely
+# saturated 12/12 this run (already visible via task_difficulty n_pass).
 FLOOR_TASKS = {
     "corvid_fetch_01",
-    "stonebridge_term_01",
     "nda_inventory_01",
     "q1_2025_inventory_01",
     "nonsolicit_search_01",
@@ -204,6 +207,11 @@ def main() -> None:
     runs = load_runs(repo)
     tasks = load_tasks(repo / DATASET)
     parallel_ids = [t.task_id for t in tasks if t.expected_parallel]
+    # Expected call count per task: parallel tasks expect one call per spec,
+    # all others a single call. Used for the over-call behavioral metric.
+    parallel_spec_count = {
+        t.task_id: len(t.expected_parallel) for t in tasks if t.expected_parallel
+    }
 
     configs = []
     per_config_task = {}
@@ -212,6 +220,16 @@ def main() -> None:
         n_correct = sum(x["result"]["score"] for x in r["records"])
         cost = s["total_cost_usd"]
         rt = sum(x["reasoning_tokens"] for x in r["records"])
+        # Over-call: a correct record (score == 1) that emitted more tool calls
+        # than necessary. Behavioral metric only — never touches score/CPC.
+        over_call_count = 0
+        for x in r["records"]:
+            res = x["result"]
+            if res["score"] != 1:
+                continue
+            expected_calls = parallel_spec_count.get(res["task_id"], 1)
+            if len(res["actual_tools"]) > expected_calls:
+                over_call_count += 1
         configs.append(
             {
                 "label": r["label"],
@@ -228,6 +246,8 @@ def main() -> None:
                 "input_tokens": s["total_input_tokens"],
                 "output_tokens": s["total_output_tokens"],
                 "reasoning_tokens": rt,
+                "over_call_count": over_call_count,
+                "over_call_rate": round(over_call_count / s["n_tasks"], 4),
                 "mean_latency_s": round(s["mean_latency_seconds"], 2),
             }
         )
@@ -326,6 +346,13 @@ def main() -> None:
                 "Hardened 25-task run (post-#22). Parallel tasks re-scored"
                 " under per-spec alternatives (#25). NOT score-comparable"
                 " task-for-task to the June-10 or June-12-morning grids."
+            ),
+            "reasoning_tokens_note": (
+                "Per-config reasoning_tokens is NOT cross-provider comparable:"
+                " Anthropic folds thinking into output_tokens (reads 0), OpenAI"
+                " reports real reasoning tokens, and Ollama/gemma's value is a"
+                " whitespace word-count, not tokens. Chart it within-provider"
+                " only; never across providers."
             ),
             "distractor_tools": sorted(DISTRACTORS),
             "chains": CHAINS,
