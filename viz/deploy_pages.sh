@@ -13,6 +13,7 @@
 #   data/latest.json    <- the newest run snapshot
 #   data/runs.json      <- run manifest (for the future history view)
 #   data/runs/*.json     <- dated history snapshots
+#   data/reps_*.json     <- multi-rep CI aggregate(s) for Chart 11
 #
 # Usage:
 #   CLOUDFLARE_API_TOKEN=... viz/deploy_pages.sh                 # production
@@ -53,6 +54,8 @@ cp "$VIZ/pages-index.html" "$SITE/index.html"
 cp "$VIZ/data/latest.json" "$SITE/data/latest.json"
 cp "$VIZ/data/runs.json"   "$SITE/data/runs.json"
 cp "$VIZ"/data/runs/*.json "$SITE/data/runs/"
+# multi-rep CI aggregate(s) for Chart 11 (optional — skip cleanly if none exist)
+cp "$VIZ"/data/reps_*.json "$SITE/data/" 2>/dev/null || true
 
 # 3. deploy (production unless --branch names a preview)
 echo "deploying '$SITE' -> project '$PROJECT' (branch: $BRANCH)"
