@@ -1,8 +1,15 @@
 """Aggregate multi-rep benchmark runs into a per-config statistics table.
 
-A multi-rep run executes the 25-task eval N times per config to estimate
-run-to-run variance / confidence intervals — the variance estimate the
-single-run snapshot lacked. This script reads the per-rep raw result files
+A multi-rep run executes the 25-task eval N times per config so two DISTINCT
+quantities can be reported (do not conflate them):
+
+  * per-rep score SPREAD (min..max across reps) — the run-to-run / sampling
+    variance the single-run snapshot could not show; this is the headline signal.
+  * a pooled Wilson 95% interval — within-trials sampling error treating the
+    N*25 outcomes as pooled Bernoulli draws. This is NOT a run-to-run variance
+    estimate; it is roughly constant per accuracy regardless of rep spread.
+
+This script reads the per-rep raw result files
 (``eval_*.json``, each ``{"summary": {...}, "records": [...]}``), groups them
 by config ``(model_requested, effort)``, and emits:
 
