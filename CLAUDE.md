@@ -115,6 +115,9 @@ Key decisions and their rationale (don't relitigate — read first):
 9. **Gemma 4 thinking not disabled** — reasoning token cost is real data for CPC.
 10. **`expected_alternatives` for adjudicated ties** — when dataset red-teaming shows two retrieval strategies are equally sound, the task lists both rather than penalizing one. Alternatives are added only after adjudication, never to paper over a vague task.
 11. **Four hardening axes (shipped)** — the first benchmark run showed 10/15 tasks passed by everyone; single-turn selection from small tool sets is saturated industry-wide. Hardened along: (1) longer chains with non-adjacent state dependency, (2) constraint-dense filters, (3) semantic near-miss distractors, (4) parallel invocation scoring (`expected_parallel`). Easy tasks are kept as a baseline floor; the hard tasks are where CPC means something.
+12. **Two adjudications closed (no dataset change)** — both resolved against the r2 rerun, scoring and task JSON unchanged:
+    - `vendor_renewal_decompose_01`: **keep strict**. Decompose-first is the only first move that reaches all three clauses of the ask; `list_documents(type=vendor_agreement)` provably cannot reach the Easton lease clause (needs doc_19 / type=lease). Present the 2/12 pass result as a 4.6-generation behavioral fingerprint, NOT a decomposition-capability gradient — newer opus-4-8 fails it.
+    - `easton_amendment_03b`: **defensible as-is** (unanimous review-panel verdict); the dataset's strongest single discriminator. Threats-to-validity disclosure for the blog: the failing route (`list_documents` on the Pinehurst landlord) is metadata-only and never returns the renewal clause, so it does not even incidentally answer the open question.
 
 ## Visualization & publishing
 
@@ -129,6 +132,6 @@ The benchmark dashboard is published at **cpc.sahilashar.com** (Cloudflare Pages
 
 - CPC-methodology blog post (canonical data: `viz/data/runs/2026-06-12-r2.json` + `viz/insights-2026-06-12-r2.md`)
 - Dashboard history-over-time view (trend charts reading `runs.json`)
-- Resolve the `vendor_renewal_decompose_01` keep-strict vs loosen adjudication with the rerun data in hand
+- ~~Resolve the `vendor_renewal_decompose_01` keep-strict vs loosen adjudication~~ — closed; see Design decision 12 (kept strict; both adjudications recorded there)
 - V2 backlog: anchor-dependent relative-date tasks (Axis E follow-up), `expected_no_call` mode (Axis D redesign), partial credit
 - Path B: scheduled runs + run-health publish gate

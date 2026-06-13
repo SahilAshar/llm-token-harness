@@ -6,6 +6,7 @@
     "n_configs": 12,
     "north_star": "CPC = total run cost / tasks with correct retrieval strategy",
     "note": "Hardened 25-task run (post-#22). Parallel tasks re-scored under per-spec alternatives (#25). NOT score-comparable task-for-task to the June-10 or June-12-morning grids.",
+    "reasoning_tokens_note": "Per-config reasoning_tokens is NOT cross-provider comparable: Anthropic folds thinking into output_tokens (reads 0), OpenAI reports real reasoning tokens, and Ollama/gemma's value is a whitespace word-count, not tokens. Chart it within-provider only; never across providers.",
     "distractor_tools": [
       "create_alert",
       "search_history",
@@ -37,6 +38,8 @@
       "input_tokens": 30019,
       "output_tokens": 1512,
       "reasoning_tokens": 0,
+      "over_call_count": 1,
+      "over_call_rate": 0.04,
       "mean_latency_s": 1.5
     },
     {
@@ -57,6 +60,8 @@
       "input_tokens": 56304,
       "output_tokens": 3719,
       "reasoning_tokens": 0,
+      "over_call_count": 6,
+      "over_call_rate": 0.24,
       "mean_latency_s": 1.62
     },
     {
@@ -74,6 +79,8 @@
       "input_tokens": 32713,
       "output_tokens": 1405,
       "reasoning_tokens": 0,
+      "over_call_count": 4,
+      "over_call_rate": 0.16,
       "mean_latency_s": 1.01
     },
     {
@@ -91,6 +98,8 @@
       "input_tokens": 32713,
       "output_tokens": 1212,
       "reasoning_tokens": 0,
+      "over_call_count": 3,
+      "over_call_rate": 0.12,
       "mean_latency_s": 1.01
     },
     {
@@ -110,6 +119,8 @@
       "input_tokens": 32713,
       "output_tokens": 2864,
       "reasoning_tokens": 949,
+      "over_call_count": 11,
+      "over_call_rate": 0.44,
       "mean_latency_s": 2.77
     },
     {
@@ -127,6 +138,8 @@
       "input_tokens": 39216,
       "output_tokens": 8081,
       "reasoning_tokens": 2833,
+      "over_call_count": 0,
+      "over_call_rate": 0.0,
       "mean_latency_s": 33.94
     },
     {
@@ -147,6 +160,8 @@
       "input_tokens": 56329,
       "output_tokens": 3912,
       "reasoning_tokens": 0,
+      "over_call_count": 4,
+      "over_call_rate": 0.16,
       "mean_latency_s": 3.64
     },
     {
@@ -167,6 +182,8 @@
       "input_tokens": 56329,
       "output_tokens": 4326,
       "reasoning_tokens": 0,
+      "over_call_count": 7,
+      "over_call_rate": 0.28,
       "mean_latency_s": 3.83
     },
     {
@@ -186,6 +203,8 @@
       "input_tokens": 65645,
       "output_tokens": 4064,
       "reasoning_tokens": 0,
+      "over_call_count": 6,
+      "over_call_rate": 0.24,
       "mean_latency_s": 2.43
     },
     {
@@ -205,6 +224,8 @@
       "input_tokens": 65645,
       "output_tokens": 2995,
       "reasoning_tokens": 0,
+      "over_call_count": 3,
+      "over_call_rate": 0.12,
       "mean_latency_s": 4.82
     },
     {
@@ -224,6 +245,8 @@
       "input_tokens": 65645,
       "output_tokens": 3773,
       "reasoning_tokens": 0,
+      "over_call_count": 6,
+      "over_call_rate": 0.24,
       "mean_latency_s": 5.52
     },
     {
@@ -243,6 +266,8 @@
       "input_tokens": 65645,
       "output_tokens": 4517,
       "reasoning_tokens": 0,
+      "over_call_count": 6,
+      "over_call_rate": 0.24,
       "mean_latency_s": 6.13
     }
   ],
@@ -1123,7 +1148,7 @@
       "n_configs": 12,
       "is_parallel": false,
       "is_alt": false,
-      "is_floor": true,
+      "is_floor": false,
       "is_chain": false
     },
     {

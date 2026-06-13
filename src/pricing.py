@@ -34,8 +34,10 @@ PRICING: dict[str, ModelPricing] = {
         input_per_mtok=1.00, output_per_mtok=5.00
     ),
     # Opus 4.8 is $5/$25 per the official pricing page ($15/$75 was Opus 4.1/4).
-    # Correct Opus pricing matters for cost attribution: claude-fable-5
-    # silently reroutes a small share of requests to claude-opus-4-8.
+    # Correct Opus pricing matters because cost is attributed to the model the
+    # response reports: any provider-side reroute or alias to claude-opus-4-8
+    # would then be billed correctly. Defensive only — not an observed behavior
+    # in current runs.
     "claude-opus-4-8": ModelPricing(input_per_mtok=5.00, output_per_mtok=25.00),
     "claude-opus-4-6": ModelPricing(input_per_mtok=5.00, output_per_mtok=25.00),
     "claude-fable-5": ModelPricing(input_per_mtok=10.00, output_per_mtok=50.00),
