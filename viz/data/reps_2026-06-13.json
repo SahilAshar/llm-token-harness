@@ -1,0 +1,380 @@
+{
+  "meta": {
+    "generated_from": "/Users/sahilashar/Documents/claude/llm-token-harness/results/reps_2026-06-13",
+    "reps_dir": "reps_2026-06-13",
+    "n_configs": 9,
+    "n_tasks": 25,
+    "note": "Multi-rep aggregate: per config, N repetitions of the 25-task eval. Wilson 95% interval is computed on POOLED accuracy (\u03a3 n_correct / \u03a3 n_tasks across reps). Configs sorted by median score descending. Config set + rep count discovered by globbing eval_*.json \u2014 not hardcoded."
+  },
+  "configs": [
+    {
+      "label": "claude-opus-4-6",
+      "model": "claude-opus-4-6",
+      "provider": "anthropic",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        20,
+        20,
+        19,
+        18
+      ],
+      "score_median": 19.5,
+      "score_mean": 19.25,
+      "score_min": 18,
+      "score_max": 20,
+      "score_spread": 2,
+      "accuracies": [
+        0.8,
+        0.8,
+        0.76,
+        0.72
+      ],
+      "accuracy_pooled": 0.77,
+      "ci_low": 0.678454,
+      "ci_high": 0.841568,
+      "ci_low_score": 16.96,
+      "ci_high_score": 21.04,
+      "cpc_usds": [
+        0.01939,
+        0.019709,
+        0.020819,
+        0.021955
+      ],
+      "cpc_median": 0.020264,
+      "cpc_min": 0.01939,
+      "cpc_max": 0.021955,
+      "cost_per_rep_median": 0.394683,
+      "total_cost_all_reps": 1.57273,
+      "mean_latency_median": 3.5753
+    },
+    {
+      "label": "claude-opus-4-8",
+      "model": "claude-opus-4-8",
+      "provider": "anthropic",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        19,
+        20,
+        19,
+        19
+      ],
+      "score_median": 19.0,
+      "score_mean": 19.25,
+      "score_min": 19,
+      "score_max": 20,
+      "score_spread": 1,
+      "accuracies": [
+        0.76,
+        0.8,
+        0.76,
+        0.76
+      ],
+      "accuracy_pooled": 0.77,
+      "ci_low": 0.678454,
+      "ci_high": 0.841568,
+      "ci_low_score": 16.96,
+      "ci_high_score": 21.04,
+      "cpc_usds": [
+        0.022774,
+        0.021393,
+        0.023532,
+        0.022818
+      ],
+      "cpc_median": 0.022796,
+      "cpc_min": 0.021393,
+      "cpc_max": 0.023532,
+      "cost_per_rep_median": 0.433125,
+      "total_cost_all_reps": 1.7412,
+      "mean_latency_median": 2.8761
+    },
+    {
+      "label": "gpt-5.5",
+      "model": "gpt-5.5",
+      "provider": "openai",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        20,
+        17,
+        19,
+        19
+      ],
+      "score_median": 19.0,
+      "score_mean": 18.75,
+      "score_min": 17,
+      "score_max": 20,
+      "score_spread": 3,
+      "accuracies": [
+        0.8,
+        0.68,
+        0.76,
+        0.76
+      ],
+      "accuracy_pooled": 0.75,
+      "ci_low": 0.656954,
+      "ci_high": 0.824549,
+      "ci_low_score": 16.42,
+      "ci_high_score": 20.61,
+      "cpc_usds": [
+        0.012701,
+        0.014834,
+        0.013061,
+        0.012711
+      ],
+      "cpc_median": 0.012886,
+      "cpc_min": 0.012701,
+      "cpc_max": 0.014834,
+      "cost_per_rep_median": 0.250175,
+      "total_cost_all_reps": 0.99587,
+      "mean_latency_median": 2.2787
+    },
+    {
+      "label": "claude-sonnet-4-6",
+      "model": "claude-sonnet-4-6",
+      "provider": "anthropic",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        20,
+        18,
+        18,
+        17
+      ],
+      "score_median": 18.0,
+      "score_mean": 18.25,
+      "score_min": 17,
+      "score_max": 20,
+      "score_spread": 3,
+      "accuracies": [
+        0.8,
+        0.72,
+        0.72,
+        0.68
+      ],
+      "accuracy_pooled": 0.73,
+      "ci_low": 0.635677,
+      "ci_high": 0.807305,
+      "ci_low_score": 15.89,
+      "ci_high_score": 20.18,
+      "cpc_usds": [
+        0.011391,
+        0.013328,
+        0.013318,
+        0.013262
+      ],
+      "cpc_median": 0.01329,
+      "cpc_min": 0.011391,
+      "cpc_max": 0.013328,
+      "cost_per_rep_median": 0.233772,
+      "total_cost_all_reps": 0.932898,
+      "mean_latency_median": 3.4733
+    },
+    {
+      "label": "gpt-5.4-nano",
+      "model": "gpt-5.4-nano",
+      "provider": "openai",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        17,
+        18,
+        18,
+        19
+      ],
+      "score_median": 18.0,
+      "score_mean": 18.0,
+      "score_min": 17,
+      "score_max": 19,
+      "score_spread": 2,
+      "accuracies": [
+        0.68,
+        0.72,
+        0.72,
+        0.76
+      ],
+      "accuracy_pooled": 0.72,
+      "ci_low": 0.625118,
+      "ci_high": 0.798604,
+      "ci_low_score": 15.63,
+      "ci_high_score": 19.97,
+      "cpc_usds": [
+        0.000509,
+        0.000461,
+        0.000473,
+        0.000453
+      ],
+      "cpc_median": 0.000467,
+      "cpc_min": 0.000453,
+      "cpc_max": 0.000509,
+      "cost_per_rep_median": 0.008559,
+      "total_cost_all_reps": 0.034078,
+      "mean_latency_median": 0.949
+    },
+    {
+      "label": "claude-haiku-4-5",
+      "model": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        17,
+        19,
+        18,
+        17
+      ],
+      "score_median": 17.5,
+      "score_mean": 17.75,
+      "score_min": 17,
+      "score_max": 19,
+      "score_spread": 2,
+      "accuracies": [
+        0.68,
+        0.76,
+        0.72,
+        0.68
+      ],
+      "accuracy_pooled": 0.71,
+      "ci_low": 0.614609,
+      "ci_high": 0.789853,
+      "ci_low_score": 15.37,
+      "ci_high_score": 19.75,
+      "cpc_usds": [
+        0.004338,
+        0.00387,
+        0.004183,
+        0.004459
+      ],
+      "cpc_median": 0.004261,
+      "cpc_min": 0.00387,
+      "cpc_max": 0.004459,
+      "cost_per_rep_median": 0.074521,
+      "total_cost_all_reps": 0.298381,
+      "mean_latency_median": 1.4564
+    },
+    {
+      "label": "gpt-5.4-mini",
+      "model": "gpt-5.4-mini",
+      "provider": "openai",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        16,
+        17,
+        17,
+        14
+      ],
+      "score_median": 16.5,
+      "score_mean": 16.0,
+      "score_min": 14,
+      "score_max": 17,
+      "score_spread": 3,
+      "accuracies": [
+        0.64,
+        0.68,
+        0.68,
+        0.56
+      ],
+      "accuracy_pooled": 0.64,
+      "ci_low": 0.542352,
+      "ci_high": 0.727289,
+      "ci_low_score": 13.56,
+      "ci_high_score": 18.18,
+      "cpc_usds": [
+        0.001868,
+        0.001792,
+        0.001777,
+        0.00213
+      ],
+      "cpc_median": 0.00183,
+      "cpc_min": 0.001777,
+      "cpc_max": 0.00213,
+      "cost_per_rep_median": 0.030045,
+      "total_cost_all_reps": 0.120364,
+      "mean_latency_median": 0.7638
+    },
+    {
+      "label": "gpt-4o-mini",
+      "model": "gpt-4o-mini",
+      "provider": "openai",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        15,
+        14,
+        16,
+        15
+      ],
+      "score_median": 15.0,
+      "score_mean": 15.0,
+      "score_min": 14,
+      "score_max": 16,
+      "score_spread": 2,
+      "accuracies": [
+        0.6,
+        0.56,
+        0.64,
+        0.6
+      ],
+      "accuracy_pooled": 0.6,
+      "ci_low": 0.502001,
+      "ci_high": 0.6906,
+      "ci_low_score": 12.55,
+      "ci_high_score": 17.27,
+      "cpc_usds": [
+        0.000373,
+        0.000385,
+        0.000349,
+        0.000363
+      ],
+      "cpc_median": 0.000368,
+      "cpc_min": 0.000349,
+      "cpc_max": 0.000385,
+      "cost_per_rep_median": 0.005516,
+      "total_cost_all_reps": 0.022015,
+      "mean_latency_median": 1.44
+    },
+    {
+      "label": "gemma4:12b",
+      "model": "gemma4:12b",
+      "provider": "ollama",
+      "effort": null,
+      "n_reps": 4,
+      "scores": [
+        11,
+        12,
+        11,
+        11
+      ],
+      "score_median": 11.0,
+      "score_mean": 11.25,
+      "score_min": 11,
+      "score_max": 12,
+      "score_spread": 1,
+      "accuracies": [
+        0.44,
+        0.48,
+        0.44,
+        0.44
+      ],
+      "accuracy_pooled": 0.45,
+      "ci_low": 0.356144,
+      "ci_high": 0.547556,
+      "ci_low_score": 8.9,
+      "ci_high_score": 13.69,
+      "cpc_usds": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "cpc_median": 0.0,
+      "cpc_min": 0.0,
+      "cpc_max": 0.0,
+      "cost_per_rep_median": 0.0,
+      "total_cost_all_reps": 0.0,
+      "mean_latency_median": 31.6051
+    }
+  ]
+}
