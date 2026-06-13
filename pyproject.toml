@@ -13,16 +13,5 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 markers = ["live: tests that hit live APIs or local services"]
 
-[tool.ruff]
-extend-exclude = [
-    "src/adapter.py",
-    "src/runner.py",
-    "src/suites.py",
-    "src/trial.py",
-    "src/result_logger.py",
-    "utils/",
-    "main.py",
-]
-
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

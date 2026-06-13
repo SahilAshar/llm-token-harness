@@ -30,9 +30,7 @@ Current dataset: `data/tasks/search_agent_v1.json` — 25 tasks over a simulated
 | `src/cli.py` | CLI entry point (`make eval`): runs an eval and prints a CPC summary |
 | `data/tasks/` | Task JSON files |
 
-### Legacy V1 files (excluded from lint)
-
-These are from the original math/sentiment harness and are excluded in `pyproject.toml` ruff config: `src/adapter.py`, `src/runner.py`, `src/suites.py`, `src/trial.py`, `src/result_logger.py`, `utils/`, `main.py`.
+The original V1 math/sentiment harness (`src/adapter.py`, `src/runner.py`, `src/suites.py`, `src/trial.py`, `src/result_logger.py`, `utils/`, `main.py` and the V1 datasets) was deleted in the front-door cleanup — `git log` preserves it. Everything under `src/` is now the live search-agent harness, with no lint exclusions.
 
 ### The 4 tools (QU → Strategy pipeline)
 
