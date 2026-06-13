@@ -161,6 +161,9 @@
   .pill { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
   .footer { color: var(--faint); font-size: 11px; padding: 0 40px 40px; max-width: 1700px; margin: 0 auto; }
   .nodata { color: var(--bad); font-size: 12px; padding: 20px; }
+  .strip-task { margin: 16px 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .strip-task:first-of-type { margin-top: 8px; }
+  .strip-task code { color: var(--text); }
   .tag { font-size: 9px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; font-weight: 600; }
   .tag.par { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
   .tag.alt { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
@@ -392,41 +395,68 @@ const N = DATA.meta.n_tasks;
 })();
 
 // ============================================================
-// CHART 4 — Parallel task strip
+// CHART 4 — Parallel task strips
 // ============================================================
 (function () {
-  const c = card('04', 'Parallel-invocation task · halverson_dispute_02',
-    'Only <b>1 of 12</b> configs passed. The task needs <b>two parallel <code>search</code> calls</b>; the dominant failure mode is ' +
-    'collapsing to <b>two <code>list_documents</code></b> (metadata-only, wrong tool). <b>gpt-5.4-nano</b> over-fires (4 searches) but matches both specs and passes. ' +
-    'gemma emitted no tool call at all.', {wide:true});
+  // Tolerate both the current list shape (parallel_tasks) and the legacy
+  // single-object shape (parallel_task) the inlined offline blob still uses.
+  const tasks = Array.isArray(DATA.parallel_tasks)
+    ? DATA.parallel_tasks
+    : (DATA.parallel_task ? [DATA.parallel_task] : []);
 
-  const pc = DATA.parallel_task.per_config;
-  const tbl = document.createElement('table');
-  tbl.className = 'matrix';
-  const tr = document.createElement('tr');
-  pc.forEach(d => {
-    const th = document.createElement('th'); th.textContent = d.label; tr.appendChild(th);
+  const passSummary = tasks.map(t => {
+    const np = t.per_config.filter(d => d.pass).length;
+    return '<code>' + t.task_id + '</code> <b>' + np + '/' + t.per_config.length + '</b>';
+  }).join('  ·  ');
+
+  const c = card('04', 'Parallel-invocation tasks',
+    'Each needs <b>2+ tool calls in one batch</b>, with every spec matched. Pass rates: ' +
+    (passSummary || '—') + '. The dominant failure mode is collapsing to metadata-only ' +
+    '<code>list_documents</code> instead of parallel <code>search</code>.', {wide:true});
+
+  if (!tasks.length) {
+    const note = document.createElement('div');
+    note.className = 'nodata';
+    note.textContent = 'No parallel-invocation data in this run.';
+    c.appendChild(note);
+    return;
+  }
+
+  tasks.forEach(t => {
+    const pc = t.per_config;
+    const np = pc.filter(d => d.pass).length;
+    const head = document.createElement('div');
+    head.className = 'strip-task';
+    head.innerHTML = '<code>' + t.task_id + '</code> · ' + np + ' of ' + pc.length + ' passed';
+    c.appendChild(head);
+
+    const tbl = document.createElement('table');
+    tbl.className = 'matrix';
+    const tr = document.createElement('tr');
+    pc.forEach(d => {
+      const th = document.createElement('th'); th.textContent = d.label; tr.appendChild(th);
+    });
+    tbl.appendChild(tr);
+    const tr2 = document.createElement('tr');
+    pc.forEach(d => {
+      const td = document.createElement('td'); td.className='cell';
+      const wrap = document.createElement('div'); wrap.className='stripcell';
+      const pf = document.createElement('div');
+      pf.className = 'pf ' + (d.pass ? 'pass' : 'fail');
+      pf.textContent = d.pass ? '✓' : '✗';
+      wrap.appendChild(pf);
+      const mc = document.createElement('div'); mc.className='bar-val'; mc.style.fontSize='10px';
+      mc.textContent = d.matched + '/' + d.expected;
+      wrap.appendChild(mc);
+      const calls = document.createElement('div'); calls.className='calls';
+      calls.textContent = d.calls.length ? d.calls.map(x=>x==='list_documents'?'list':x).join(' + ') : '(none)';
+      wrap.appendChild(calls);
+      td.appendChild(wrap);
+      tr2.appendChild(td);
+    });
+    tbl.appendChild(tr2);
+    c.appendChild(tbl);
   });
-  tbl.appendChild(tr);
-  const tr2 = document.createElement('tr');
-  pc.forEach(d => {
-    const td = document.createElement('td'); td.className='cell';
-    const wrap = document.createElement('div'); wrap.className='stripcell';
-    const pf = document.createElement('div');
-    pf.className = 'pf ' + (d.pass ? 'pass' : 'fail');
-    pf.textContent = d.pass ? '✓' : '✗';
-    wrap.appendChild(pf);
-    const mc = document.createElement('div'); mc.className='bar-val'; mc.style.fontSize='10px';
-    mc.textContent = d.matched + '/' + d.expected;
-    wrap.appendChild(mc);
-    const calls = document.createElement('div'); calls.className='calls';
-    calls.textContent = d.calls.length ? d.calls.map(x=>x==='list_documents'?'list':x).join(' + ') : '(none)';
-    wrap.appendChild(calls);
-    td.appendChild(wrap);
-    tr2.appendChild(td);
-  });
-  tbl.appendChild(tr2);
-  c.appendChild(tbl);
 })();
 
 // ============================================================

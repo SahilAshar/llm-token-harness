@@ -161,6 +161,9 @@
   .pill { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
   .footer { color: var(--faint); font-size: 11px; padding: 0 40px 40px; max-width: 1700px; margin: 0 auto; }
   .nodata { color: var(--bad); font-size: 12px; padding: 20px; }
+  .strip-task { margin: 16px 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .strip-task:first-of-type { margin-top: 8px; }
+  .strip-task code { color: var(--text); }
   .tag { font-size: 9px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; font-weight: 600; }
   .tag.par { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
   .tag.alt { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
@@ -786,41 +789,68 @@ const N = DATA.meta.n_tasks;
 })();
 
 // ============================================================
-// CHART 4 — Parallel task strip
+// CHART 4 — Parallel task strips
 // ============================================================
 (function () {
-  const c = card('04', 'Parallel-invocation task · halverson_dispute_02',
-    'Only <b>1 of 12</b> configs passed. The task needs <b>two parallel <code>search</code> calls</b>; the dominant failure mode is ' +
-    'collapsing to <b>two <code>list_documents</code></b> (metadata-only, wrong tool). <b>gpt-5.4-nano</b> over-fires (4 searches) but matches both specs and passes. ' +
-    'gemma emitted no tool call at all.', {wide:true});
+  // Tolerate both the current list shape (parallel_tasks) and the legacy
+  // single-object shape (parallel_task) the inlined offline blob still uses.
+  const tasks = Array.isArray(DATA.parallel_tasks)
+    ? DATA.parallel_tasks
+    : (DATA.parallel_task ? [DATA.parallel_task] : []);
 
-  const pc = DATA.parallel_task.per_config;
-  const tbl = document.createElement('table');
-  tbl.className = 'matrix';
-  const tr = document.createElement('tr');
-  pc.forEach(d => {
-    const th = document.createElement('th'); th.textContent = d.label; tr.appendChild(th);
+  const passSummary = tasks.map(t => {
+    const np = t.per_config.filter(d => d.pass).length;
+    return '<code>' + t.task_id + '</code> <b>' + np + '/' + t.per_config.length + '</b>';
+  }).join('  ·  ');
+
+  const c = card('04', 'Parallel-invocation tasks',
+    'Each needs <b>2+ tool calls in one batch</b>, with every spec matched. Pass rates: ' +
+    (passSummary || '—') + '. The dominant failure mode is collapsing to metadata-only ' +
+    '<code>list_documents</code> instead of parallel <code>search</code>.', {wide:true});
+
+  if (!tasks.length) {
+    const note = document.createElement('div');
+    note.className = 'nodata';
+    note.textContent = 'No parallel-invocation data in this run.';
+    c.appendChild(note);
+    return;
+  }
+
+  tasks.forEach(t => {
+    const pc = t.per_config;
+    const np = pc.filter(d => d.pass).length;
+    const head = document.createElement('div');
+    head.className = 'strip-task';
+    head.innerHTML = '<code>' + t.task_id + '</code> · ' + np + ' of ' + pc.length + ' passed';
+    c.appendChild(head);
+
+    const tbl = document.createElement('table');
+    tbl.className = 'matrix';
+    const tr = document.createElement('tr');
+    pc.forEach(d => {
+      const th = document.createElement('th'); th.textContent = d.label; tr.appendChild(th);
+    });
+    tbl.appendChild(tr);
+    const tr2 = document.createElement('tr');
+    pc.forEach(d => {
+      const td = document.createElement('td'); td.className='cell';
+      const wrap = document.createElement('div'); wrap.className='stripcell';
+      const pf = document.createElement('div');
+      pf.className = 'pf ' + (d.pass ? 'pass' : 'fail');
+      pf.textContent = d.pass ? '✓' : '✗';
+      wrap.appendChild(pf);
+      const mc = document.createElement('div'); mc.className='bar-val'; mc.style.fontSize='10px';
+      mc.textContent = d.matched + '/' + d.expected;
+      wrap.appendChild(mc);
+      const calls = document.createElement('div'); calls.className='calls';
+      calls.textContent = d.calls.length ? d.calls.map(x=>x==='list_documents'?'list':x).join(' + ') : '(none)';
+      wrap.appendChild(calls);
+      td.appendChild(wrap);
+      tr2.appendChild(td);
+    });
+    tbl.appendChild(tr2);
+    c.appendChild(tbl);
   });
-  tbl.appendChild(tr);
-  const tr2 = document.createElement('tr');
-  pc.forEach(d => {
-    const td = document.createElement('td'); td.className='cell';
-    const wrap = document.createElement('div'); wrap.className='stripcell';
-    const pf = document.createElement('div');
-    pf.className = 'pf ' + (d.pass ? 'pass' : 'fail');
-    pf.textContent = d.pass ? '✓' : '✗';
-    wrap.appendChild(pf);
-    const mc = document.createElement('div'); mc.className='bar-val'; mc.style.fontSize='10px';
-    mc.textContent = d.matched + '/' + d.expected;
-    wrap.appendChild(mc);
-    const calls = document.createElement('div'); calls.className='calls';
-    calls.textContent = d.calls.length ? d.calls.map(x=>x==='list_documents'?'list':x).join(' + ') : '(none)';
-    wrap.appendChild(calls);
-    td.appendChild(wrap);
-    tr2.appendChild(td);
-  });
-  tbl.appendChild(tr2);
-  c.appendChild(tbl);
 })();
 
 // ============================================================
@@ -1075,21 +1105,33 @@ const N = DATA.meta.n_tasks;
 // Live-data loader for GitHub Pages: fetch the canonical latest snapshot,
 // then run the (deferred) dashboard renderer. No CDNs; same-origin JSON only.
 (function () {
-  function showError(msg) {
+  function banner(html) {
     var main = document.getElementById('main');
-    var banner = document.createElement('div');
-    banner.setAttribute('role', 'alert');
-    banner.style.cssText =
+    var el = document.createElement('div');
+    el.setAttribute('role', 'alert');
+    el.style.cssText =
       'margin:32px 40px;padding:18px 22px;border:1px solid #f85149;' +
       'border-radius:10px;background:rgba(248,81,73,0.08);color:#f0b6b2;' +
       'font-size:14px;line-height:1.5;';
-    banner.innerHTML =
+    el.innerHTML = html;
+    if (main) { main.appendChild(el); } else { document.body.appendChild(el); }
+  }
+  // Genuine network / JSON load failure: the data never arrived.
+  function showFetchError(msg) {
+    banner(
       '<strong>Could not load benchmark data.</strong><br>' +
       'Tried to fetch <code>./data/latest.json</code>. ' +
       'This page needs to be served over HTTP(S) (e.g. GitHub Pages) so the ' +
       'same-origin data file is reachable.<br><span style="opacity:0.8">' +
-      msg + '</span>';
-    if (main) { main.appendChild(banner); } else { document.body.appendChild(banner); }
+      msg + '</span>');
+  }
+  // Data arrived fine but a renderer threw: do NOT blame the fetch.
+  function showRenderError(msg) {
+    banner(
+      '<strong>Benchmark data loaded, but a panel failed to render.</strong><br>' +
+      'The data fetch succeeded — this is a rendering error, not a load ' +
+      'failure. See the browser console for details.<br>' +
+      '<span style="opacity:0.8">' + msg + '</span>');
   }
   fetch('./data/latest.json', { cache: 'no-cache' })
     .then(function (r) {
@@ -1098,13 +1140,20 @@ const N = DATA.meta.n_tasks;
     })
     .then(function (data) {
       window.__BENCH_DATA__ = data;
-      if (typeof window.__renderDashboard === 'function') {
+      if (typeof window.__renderDashboard !== 'function') {
+        showRenderError('Renderer not found.');
+        return;
+      }
+      // Keep render exceptions out of the fetch .catch so they are reported
+      // honestly instead of masquerading as a data-load failure.
+      try {
         window.__renderDashboard();
-      } else {
-        showError('Renderer not found.');
+      } catch (err) {
+        if (window.console && console.error) { console.error(err); }
+        showRenderError(String(err));
       }
     })
-    .catch(function (err) { showError(String(err)); });
+    .catch(function (err) { showFetchError(String(err)); });
 })();
 </script>
 
