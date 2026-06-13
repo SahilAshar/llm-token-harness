@@ -48,8 +48,9 @@ class TaskResult(BaseModel, frozen=True):
     parallel_expected: int | None = None
     parallel_matched: int | None = None
     parallel_failed_specs: list[str] | None = None
-    # Full batch (name + arguments) for parallel tasks, so pass-sets are
-    # auditable from results JSON. None on single-call paths (out of scope).
+    # Full ordered batch (name + arguments) for every task, so pass-sets
+    # and per-call args are auditable from the results JSON. Defaults to
+    # None only for records constructed without the field.
     actual_calls: list[dict[str, Any]] | None = None
 
 
@@ -204,6 +205,9 @@ def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
             actual_args=None,
             matched_args=[],
             failed_args=[ea.name for ea in task.expected_args],
+            actual_calls=[
+                {"name": tc.name, "arguments": tc.arguments} for tc in tool_calls
+            ],
         )
 
     specs = [
@@ -225,6 +229,9 @@ def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
                     actual_args=tc.arguments,
                     matched_args=matched,
                     failed_args=failed,
+                    actual_calls=[
+                        {"name": c.name, "arguments": c.arguments} for c in tool_calls
+                    ],
                 )
 
     name_matches = [tc for tc in tool_calls if tc.name == task.expected_tool]
@@ -245,4 +252,7 @@ def score_task(task: Task, tool_calls: list[ToolCall]) -> TaskResult:
         actual_args=reporting.arguments,
         matched_args=matched,
         failed_args=failed,
+        actual_calls=[
+            {"name": tc.name, "arguments": tc.arguments} for tc in tool_calls
+        ],
     )

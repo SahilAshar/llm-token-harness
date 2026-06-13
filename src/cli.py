@@ -16,7 +16,9 @@ from src.adapters import get_adapter
 from src.adapters.base import Provider
 from src.eval_runner import (
     DEFAULT_MAX_OUTPUT_TOKENS,
+    RunAggregate,
     RunSummary,
+    aggregate_summaries,
     run_eval,
     write_results,
 )
@@ -61,6 +63,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_MAX_OUTPUT_TOKENS,
         help="Max output tokens per task.",
     )
+    parser.add_argument(
+        "--reps",
+        type=int,
+        default=1,
+        help=(
+            "Number of times to repeat the full eval. Each rep writes its"
+            " own timestamped artifact; an aggregate is printed for reps > 1."
+        ),
+    )
     return parser
 
 
@@ -69,6 +80,8 @@ def format_summary(summary: RunSummary) -> str:
     rows = [
         ("model (requested)", summary.model_requested),
         ("provider", summary.provider),
+        ("effort", summary.effort if summary.effort is not None else "n/a"),
+        ("dataset", summary.dataset if summary.dataset is not None else "n/a"),
         ("tasks", str(summary.n_tasks)),
         ("correct", str(summary.n_correct)),
         ("accuracy", f"{summary.accuracy:.1%}"),
@@ -82,21 +95,51 @@ def format_summary(summary: RunSummary) -> str:
     return "\n".join(f"{label.ljust(width)}  {value}" for label, value in rows)
 
 
+def format_aggregate(aggregate: RunAggregate) -> str:
+    def _cpc(value: float | None) -> str:
+        return f"${value:.6f}" if value is not None else "n/a"
+
+    rows = [
+        ("reps", str(aggregate.n_reps)),
+        ("accuracy median", f"{aggregate.accuracy_median:.1%}"),
+        ("accuracy min", f"{aggregate.accuracy_min:.1%}"),
+        ("accuracy max", f"{aggregate.accuracy_max:.1%}"),
+        ("CPC median", _cpc(aggregate.cpc_median)),
+        ("CPC min", _cpc(aggregate.cpc_min)),
+        ("CPC max", _cpc(aggregate.cpc_max)),
+    ]
+    width = max(len(label) for label, _ in rows)
+    body = "\n".join(f"{label.ljust(width)}  {value}" for label, value in rows)
+    return f"=== aggregate over {aggregate.n_reps} reps ===\n{body}"
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = build_parser().parse_args(argv)
     adapter = get_adapter(args.provider)
     tasks = load_tasks(args.tasks)
-    records, summary = run_eval(
-        adapter,
-        args.model,
-        tasks,
-        max_output_tokens=args.max_output_tokens,
-        effort=args.effort,
-    )
-    path = write_results(records, summary, args.output_dir)
-    print(format_summary(summary))
-    print(f"\nresults written to {path}")
+
+    summaries: list[RunSummary] = []
+    for i in range(args.reps):
+        records, summary = run_eval(
+            adapter,
+            args.model,
+            tasks,
+            max_output_tokens=args.max_output_tokens,
+            effort=args.effort,
+            dataset=str(args.tasks),
+        )
+        # Single-rep behavior is byte-identical to before (no suffix).
+        rep = i if args.reps > 1 else None
+        path = write_results(records, summary, args.output_dir, rep=rep)
+        print(format_summary(summary))
+        print(f"\nresults written to {path}")
+        if args.reps > 1:
+            print()
+        summaries.append(summary)
+
+    if args.reps > 1:
+        print(format_aggregate(aggregate_summaries(summaries)))
     return 0
 
 

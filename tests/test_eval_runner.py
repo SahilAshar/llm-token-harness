@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from src.adapters.base import LLMAdapter, LLMResponse, Provider, ToolCall
-from src.eval_runner import run_eval, write_results
+from src.eval_runner import RunSummary, aggregate_summaries, run_eval, write_results
 from src.pricing import PRICING
 from src.tasks import ArgMatchType, ExpectedArg, Task
 from src.tools import ALL_TOOLS
@@ -161,3 +163,90 @@ class TestWriteResults:
         # The full per-call batch must persist for downstream analysis
         # (parallel-call propensity, decompose invocation rate).
         assert payload["records"][0]["result"]["actual_tools"] == ["get_document"]
+
+
+def _make_summary(*, accuracy: float, cpc_usd: float | None) -> RunSummary:
+    return RunSummary(
+        model_requested="m",
+        provider="anthropic",
+        n_tasks=10,
+        n_correct=int(round(accuracy * 10)),
+        accuracy=accuracy,
+        total_input_tokens=0,
+        total_output_tokens=0,
+        total_cost_usd=0.0,
+        cpc_usd=cpc_usd,
+        mean_latency_seconds=0.0,
+    )
+
+
+class TestRunMetadata:
+    def test_summary_carries_metadata(self) -> None:
+        adapter = StubAdapter([_make_response(tool_calls=[CORRECT_CALL])])
+        _, summary = run_eval(
+            adapter,
+            "claude-fable-5",
+            [_make_task()],
+            effort="medium",
+            dataset="data/tasks/search_agent_v1.json",
+        )
+        assert summary.effort == "medium"
+        assert summary.dataset == "data/tasks/search_agent_v1.json"
+        assert summary.timestamp != ""
+
+    def test_artifact_timestamp_matches_filename(self, tmp_path: Path) -> None:
+        adapter = StubAdapter([_make_response(tool_calls=[CORRECT_CALL])])
+        records, summary = run_eval(adapter, "claude-fable-5", [_make_task()])
+        path = write_results(records, summary, tmp_path / "results")
+        assert summary.timestamp in path.name
+
+    def test_rep_suffix_disambiguates_filenames(self, tmp_path: Path) -> None:
+        adapter = StubAdapter([_make_response(tool_calls=[CORRECT_CALL])])
+        records, summary = run_eval(adapter, "claude-fable-5", [_make_task()])
+        p0 = write_results(records, summary, tmp_path / "r", rep=0)
+        p1 = write_results(records, summary, tmp_path / "r", rep=1)
+        assert p0.name.endswith("_rep0.json")
+        assert p1.name.endswith("_rep1.json")
+        assert p0 != p1
+
+
+class TestAggregateSummaries:
+    def test_median_min_max(self) -> None:
+        summaries = [
+            _make_summary(accuracy=0.4, cpc_usd=0.10),
+            _make_summary(accuracy=0.6, cpc_usd=0.30),
+            _make_summary(accuracy=0.8, cpc_usd=0.20),
+        ]
+        agg = aggregate_summaries(summaries)
+        assert agg.n_reps == 3
+        assert agg.accuracy_median == 0.6
+        assert agg.accuracy_min == 0.4
+        assert agg.accuracy_max == 0.8
+        assert agg.cpc_median == 0.20
+        assert agg.cpc_min == 0.10
+        assert agg.cpc_max == 0.30
+
+    def test_cpc_skips_none_reps(self) -> None:
+        # A rep with zero correct (cpc_usd None) is excluded from CPC
+        # stats but still counts toward accuracy stats.
+        summaries = [
+            _make_summary(accuracy=0.0, cpc_usd=None),
+            _make_summary(accuracy=0.5, cpc_usd=0.40),
+            _make_summary(accuracy=1.0, cpc_usd=0.20),
+        ]
+        agg = aggregate_summaries(summaries)
+        assert agg.accuracy_median == 0.5
+        assert agg.cpc_median == pytest.approx(0.30)
+        assert agg.cpc_min == 0.20
+        assert agg.cpc_max == 0.40
+
+    def test_all_none_cpc(self) -> None:
+        summaries = [
+            _make_summary(accuracy=0.0, cpc_usd=None),
+            _make_summary(accuracy=0.0, cpc_usd=None),
+        ]
+        agg = aggregate_summaries(summaries)
+        assert agg.cpc_median is None
+        assert agg.cpc_min is None
+        assert agg.cpc_max is None
+        assert agg.accuracy_median == 0.0
