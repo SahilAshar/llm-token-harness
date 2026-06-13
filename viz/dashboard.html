@@ -805,10 +805,15 @@ function drawLeaderboard(mount) {
     (anyCI ? ' <span class="lb-ci">*</span> = no multi-rep CI (single run).' : ''),
     {wide: true, mount});
 
-  function provTint(p) { return 'color-mix(in srgb, ' + provColor(p) + ' 16%, transparent)'; }
+  function provTint(p) { return 'color-mix(in srgb, ' + provColor(p) + ' 55%, transparent)'; }
   function setBar(td, pct, color) {
     const q = Math.max(0, Math.min(100, pct));
-    td.style.background = 'linear-gradient(90deg, ' + color + ' ' + q + '%, transparent ' + q + '%)';
+    // thin bottom-anchored band, not a full-cell fill — keeps rows from merging
+    // into one mass when their values are close (the dark-mode "blob").
+    td.style.backgroundImage = 'linear-gradient(90deg, ' + color + ' ' + q + '%, transparent ' + q + '%)';
+    td.style.backgroundRepeat = 'no-repeat';
+    td.style.backgroundPosition = '0 calc(100% - 4px)';
+    td.style.backgroundSize = '100% 3px';
   }
   function fmtNum(v) { return Number.isInteger(v) ? String(v) : v.toFixed(1); }
 
@@ -833,7 +838,7 @@ function drawLeaderboard(mount) {
      }},
     {key: 'cpc', label: 'CPC', sortVal: r => r.cpc, defDir: 1,
      fill: (td, r) => {
-       setBar(td, maxCpc > 0 ? r.cpc / maxCpc * 100 : 0, 'color-mix(in srgb, var(--muted) 14%, transparent)');
+       setBar(td, maxCpc > 0 ? r.cpc / maxCpc * 100 : 0, 'color-mix(in srgb, var(--muted) 50%, transparent)');
        const num = document.createElement('span'); num.className = 'lb-num';
        num.textContent = fmtUsd(r.cpc); td.appendChild(num);
      }},
@@ -1424,14 +1429,13 @@ function buildSubtabs(groups) {
   document.getElementById('main').appendChild(wrap);
 }
 
-// ---- orchestrate: hero scatter, CI forest, backbone table, then tabs ----
+// ---- orchestrate: backbone table (lead), the money chart, then tabs ----
 (function () {
-  drawScatter();
-  drawForest();
   drawLeaderboard();
+  drawScatter();
   buildSubtabs([
     { label: 'By task', render: m => { drawParallel(m); drawHeatmap(m); drawDifficulty(m); } },
-    { label: 'Methodology', render: m => { drawBeforeAfter(m); drawFable(m); } },
+    { label: 'Methodology', render: m => { drawForest(m); drawBeforeAfter(m); drawFable(m); } },
     { label: 'Over time', render: m => { drawHistory(m); } },
   ]);
 })();
