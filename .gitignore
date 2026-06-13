@@ -222,3 +222,7 @@ viz/_site/
 
 # wrangler deploy cache
 .wrangler/
+
+# Generated dashboard artifacts (rebuilt by build_visualizer.py / make visualizer)
+viz/visualizer.html
+viz/pages-index.html

@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 VIZ = Path(__file__).resolve().parent
-INSIGHTS_MD = "insights-2026-06-12.md"
+INSIGHTS_MD = "insights-2026-06-12-r2.md"  # canonical r2 rerun (post-rescore + multi-rep CI §8)
 HARDENING_MD = "hardening-roadmap-2026-06-12.md"
 
 # History-over-time (Chart 10) reads a single global contract:
