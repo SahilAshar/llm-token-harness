@@ -18,6 +18,7 @@ Defaults VIZ_DIR to this file's own directory.
 from __future__ import annotations
 
 import html
+import json
 import re
 import sys
 from pathlib import Path
@@ -25,6 +26,17 @@ from pathlib import Path
 VIZ = Path(__file__).resolve().parent
 INSIGHTS_MD = "insights-2026-06-12.md"
 HARDENING_MD = "hardening-roadmap-2026-06-12.md"
+
+# History-over-time (Chart 10) reads a single global contract:
+#   window.__BENCH_HISTORY__ = newest-first slim run array.
+# The offline build INLINES it (build_history_blob); the Pages build BLANKS it
+# and fetches data/runs.json + each run file at runtime (HISTORY_LOADER_JS),
+# falling back to [] on any failure so history is non-fatal to the page.
+HISTORY_BLOB_ID = "history-blob"
+RUNS_MANIFEST = "data/runs.json"
+
+# Only the keys Chart 10 reads, to keep the inlined offline payload slim.
+_HISTORY_CONFIG_KEYS = ("label", "provider", "accuracy", "cpc_usd", "score", "n_tasks")
 
 
 # ---------- minimal markdown -> HTML ----------
@@ -226,14 +238,21 @@ PAGES_LOADER_JS = """
         showRenderError('Renderer not found.');
         return;
       }
-      // Keep render exceptions out of the fetch .catch so they are reported
-      // honestly instead of masquerading as a data-load failure.
-      try {
-        window.__renderDashboard();
-      } catch (err) {
-        if (window.console && console.error) { console.error(err); }
-        showRenderError(String(err));
-      }
+      // History is a non-fatal second stage: load it (or fall back to []),
+      // then render. A history failure must NOT block the single-run dashboard.
+      var histP = (typeof window.__loadBenchHistory === 'function')
+        ? window.__loadBenchHistory() : Promise.resolve([]);
+      return histP.catch(function () { return []; }).then(function (history) {
+        window.__BENCH_HISTORY__ = history || [];
+        // Keep render exceptions out of the fetch .catch so they are reported
+        // honestly instead of masquerading as a data-load failure.
+        try {
+          window.__renderDashboard();
+        } catch (err) {
+          if (window.console && console.error) { console.error(err); }
+          showRenderError(String(err));
+        }
+      });
     })
     .catch(function (err) { showFetchError(String(err)); });
 })();
@@ -241,9 +260,142 @@ PAGES_LOADER_JS = """
 """.replace("%URL%", DATA_URL)
 
 
+# ---------- history-over-time (Chart 10) ----------
+
+
+def _slim_run(date: str, note: str, run: dict) -> dict:
+    """Reduce a full run JSON to only the keys Chart 10 renders."""
+    return {
+        "date": date,
+        "note": note,
+        "n_tasks": run.get("meta", {}).get("n_tasks"),
+        "configs": [
+            {k: cfg.get(k) for k in _HISTORY_CONFIG_KEYS}
+            for cfg in run.get("configs", [])
+        ],
+        "per_config_task_scores": run.get("per_config_task_scores", {}),
+    }
+
+
+def build_history(viz: Path) -> list[dict]:
+    """Read runs.json + each run file into a newest-first slim history array.
+
+    Newest-first order mirrors the manifest. Missing/broken run files are
+    skipped (history is best-effort); a missing manifest yields []. The note
+    is sourced from the manifest entry (authoritative caveat text).
+    """
+    manifest_path = viz / RUNS_MANIFEST
+    if not manifest_path.exists():
+        return []
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except (OSError, ValueError):
+        return []
+    history: list[dict] = []
+    for entry in manifest.get("runs", []):
+        rel = entry.get("path")
+        if not rel:
+            continue
+        run_path = (manifest_path.parent / rel).resolve()
+        try:
+            run = json.loads(run_path.read_text())
+        except (OSError, ValueError):
+            continue
+        history.append(
+            _slim_run(
+                date=entry.get("date", run.get("meta", {}).get("date", "")),
+                note=entry.get("note", run.get("meta", {}).get("note", "")),
+                run=run,
+            )
+        )
+    return history
+
+
+def inline_history(full_html: str, history: list[dict]) -> str:
+    """Replace the placeholder history-blob with the real slim run payload.
+
+    Mirrors the data-blob pattern: dashboard.html ships an empty `[]` blob;
+    the offline build inlines real runs so the file works under file://.
+    """
+    payload = json.dumps(history, separators=(",", ":"))
+    # Guard against a literal `</script>` inside any note string closing the tag.
+    payload = payload.replace("</", "<\\/")
+    new_html, n = re.subn(
+        rf'(<script id="{HISTORY_BLOB_ID}" type="application/json">).*?(</script>)',
+        lambda m: m.group(1) + payload + m.group(2),
+        full_html,
+        count=1,
+        flags=re.DOTALL,
+    )
+    if n != 1:
+        raise RuntimeError("history-blob placeholder not found in dashboard.html")
+    return new_html
+
+
+# Pages build: history is fetched as a non-fatal second stage. On ANY failure
+# (missing manifest, bad run file, offline) __BENCH_HISTORY__ falls back to []
+# and Chart 10 shows its own clean degraded message — never the red banner.
+HISTORY_LOADER_JS = """
+<script>
+"use strict";
+// Live-data history loader: fetch runs.json then each run file, slim to the
+// Chart-10 contract, and expose newest-first as window.__BENCH_HISTORY__.
+// Non-fatal: any failure resolves to [] so the rest of the dashboard renders.
+window.__loadBenchHistory = function () {
+  var KEYS = ['label', 'provider', 'accuracy', 'cpc_usd', 'score', 'n_tasks'];
+  function slimCfg(c) {
+    var o = {};
+    for (var i = 0; i < KEYS.length; i++) { o[KEYS[i]] = c ? c[KEYS[i]] : undefined; }
+    return o;
+  }
+  return fetch('./data/runs.json', { cache: 'no-cache' })
+    .then(function (r) { if (!r.ok) { throw new Error('runs.json ' + r.status); } return r.json(); })
+    .then(function (manifest) {
+      var runs = (manifest && manifest.runs) || [];
+      return Promise.all(runs.map(function (entry) {
+        return fetch('./data/' + entry.path, { cache: 'no-cache' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (run) {
+            if (!run) { return null; }
+            return {
+              date: entry.date || (run.meta && run.meta.date) || '',
+              note: entry.note || (run.meta && run.meta.note) || '',
+              n_tasks: run.meta && run.meta.n_tasks,
+              configs: (run.configs || []).map(slimCfg),
+              per_config_task_scores: run.per_config_task_scores || {}
+            };
+          })
+          .catch(function () { return null; });
+      }));
+    })
+    .then(function (list) { return (list || []).filter(Boolean); })
+    .catch(function () { return []; });
+};
+</script>
+"""
+
+
 def to_pages_variant(full_html: str) -> str:
     """Turn the inlined visualizer HTML into a fetch-based live-data variant."""
     out = full_html
+
+    # History: blank the inlined blob and swap the JSON.parse bootstrap for a
+    # placeholder the live loader will populate before __renderDashboard runs.
+    out = re.sub(
+        rf'(<script id="{HISTORY_BLOB_ID}" type="application/json">).*?(</script>)',
+        r"\1[]\2",
+        out,
+        count=1,
+        flags=re.DOTALL,
+    )
+    history_bootstrap = (
+        "  window.__BENCH_HISTORY__ = JSON.parse("
+        f"document.getElementById('{HISTORY_BLOB_ID}').textContent || '[]');"
+    )
+    pages_history_bootstrap = "  window.__BENCH_HISTORY__ = [];"
+    if history_bootstrap not in out:
+        raise RuntimeError("expected history-blob bootstrap not found in dashboard.html")
+    out = out.replace(history_bootstrap, pages_history_bootstrap, 1)
 
     # 1. Drop the stale inlined data so nothing ships baked into the page.
     out = re.sub(
@@ -275,7 +427,11 @@ def to_pages_variant(full_html: str) -> str:
     # Close the wrapper at the end of that same script block. The render block
     # ends with `})();\n\n</script>` (the final IIFE then the closing tag).
     close_marker = "})();\n\n</script>"
-    wrapped_close = "})();\n};\n</script>\n" + PAGES_LOADER_JS
+    # HISTORY_LOADER_JS must precede PAGES_LOADER_JS so window.__loadBenchHistory
+    # is defined when the latest.json loader invokes it before rendering.
+    wrapped_close = (
+        "})();\n};\n</script>\n" + HISTORY_LOADER_JS + "\n" + PAGES_LOADER_JS
+    )
     if close_marker not in out:
         raise RuntimeError("could not locate render script closing to wrap")
     out = out.replace(close_marker, wrapped_close, 1)
@@ -397,11 +553,17 @@ def main() -> None:
     dash = dash.replace("</body>", tab_js + "\n</body>", 1)
 
     if pages:
+        # Pages build: history is fetched at runtime; the blob stays empty and
+        # to_pages_variant swaps the bootstrap to a loader-populated placeholder.
         pages_html = to_pages_variant(dash)
         out = viz / "pages-index.html"
         out.write_text(pages_html)
         print(f"wrote {out} ({len(pages_html)} bytes) [live-data / Pages]")
     else:
+        # Offline build: inline the real dated runs so Chart 10 works under file://.
+        history = build_history(viz)
+        dash = inline_history(dash, history)
+        print(f"  inlined {len(history)} dated run(s) for history-over-time")
         out = viz / "visualizer.html"
         out.write_text(dash)
         print(f"wrote {out} ({len(dash)} bytes)")
