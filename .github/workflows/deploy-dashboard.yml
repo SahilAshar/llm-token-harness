@@ -1,0 +1,64 @@
+name: Deploy dashboard
+
+# Auto-publish the live-data dashboard to Cloudflare Pages.
+#   PR touching viz/**          -> Cloudflare *preview* deploy (branch pr-<N>)
+#   push to main touching viz/**-> Cloudflare *production* deploy
+#   Actions "Run workflow"      -> manual production deploy
+#
+# This wraps viz/deploy_pages.sh (a wrangler direct-upload to the existing
+# `cpc-dashboard` project). It is INERT until a repo secret named
+# CLOUDFLARE_API_TOKEN is added: with no token the gate step skips the deploy
+# and the run goes green, so wiring this in does not start red-X'ing every push.
+# Until the secret exists, publishing stays manual (run deploy_pages.sh locally).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "viz/**"
+      - ".github/workflows/deploy-dashboard.yml"
+  pull_request:
+    paths:
+      - "viz/**"
+      - ".github/workflows/deploy-dashboard.yml"
+  workflow_dispatch: {}
+
+# One deploy at a time per ref; newer pushes supersede in-flight ones.
+concurrency:
+  group: deploy-dashboard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for deploy credentials
+        id: gate
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CLOUDFLARE_API_TOKEN not set — workflow is wired but inert. Add the (rotated) token as a repo secret to enable auto-deploy. Publishing stays manual until then."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Deploy to Cloudflare Pages
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Preview deploy for PR #${{ github.event.number }}"
+            bash viz/deploy_pages.sh --branch "pr-${{ github.event.number }}"
+          else
+            echo "Production deploy"
+            bash viz/deploy_pages.sh
+          fi
